@@ -13,6 +13,21 @@ The-LN-Project is a custom Linux distribution based on Arch Linux, designed spec
 * Easy installation process for students new to Linux.
 * Rolling updates to keep software current. (tool to update easily TUI)
 
+## Todo
+Click here to see items next to implement [Todo](TODO.md)
+
+## How to Contribute
+We welcome contributions from UTA students and faculty!
+
+Report Issues: Use GitHub Issues to report bugs or suggest features.
+* please format your issues like so: [Issue Template](docs/issues.md)
+Add Tools: Propose packages for CS or other disciplines.
+Improve Docs: Help write guides or improve this README.
+
+### Testing
+
+Click here to see guide on testing: [Testing](docs/testing.md)
+(helpful when contributing)
 
 ## Features
 
@@ -24,13 +39,12 @@ Documentation: Guides and support for UTA students.
 
 
 ## Installation Instructions
+
 Since Arch Linux requires a manual installation process, we’re working on a custom script to automate setup for The-LN-Project. For now, follow these steps to install a basic version:
 
 1. Download Arch Linux ISO:
 
-Get the latest ISO from archlinux.org.
-For ARM, use the Arch Linux ARM image from archlinuxarm.org.
-
+Get the latest ISO from [[https://archlinux.org/download/]]
 
 2. Create Bootable Media:
 
@@ -58,7 +72,6 @@ A custom installer script is in development to streamline this process. Stay tun
 
 
 
-
 ## Included Packages (CS Focus)
 Here’s a preliminary list of tools for CS students:
 
@@ -71,12 +84,7 @@ Here’s a preliminary list of tools for CS students:
 
 More tools will be added based on student feedback.
 
-## How to Contribute
-We welcome contributions from UTA students and faculty!
 
-Report Issues: Use GitHub Issues to report bugs or suggest features.
-Add Tools: Propose packages for CS or other disciplines.
-Improve Docs: Help write guides or improve this README.
 
 
 ## Resources We’ve Looked At
