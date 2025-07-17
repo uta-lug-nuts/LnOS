@@ -85,13 +85,12 @@ Here’s a preliminary list of tools for CS students:
 More tools will be added based on student feedback.
 
 
-
-
 ## Resources We’ve Looked At
 
-Arch Linux Official Site
-Linux From Scratch
-Arch Linux ARM
+[Arch Linux Official Site](https://archlinux.org)
+[Linux From Scratch](https://linuxfromscratch.org)
+[Arch Linux ARM](https://archlinuxarm.org/)
+[Arch linux install guide](https://arch.d3sox.me/installation/setup-users)
 
 
 ## Known Issues
@@ -102,6 +101,6 @@ Limited ARM package testing—needs more validation on Raspberry Pi.
 
 ## Credits
 
-Inspired by Professor Bakker’s vision for a UTA-specific distro.
+Inspired by Professor Bakker’s and UTA LUGNUTS Community of a vision for a UTA-specific distro.
 Built on the amazing work of the Arch Linux community.
 
