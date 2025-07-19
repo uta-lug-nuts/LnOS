@@ -2,7 +2,7 @@ name: Publish Honkit Docs to GitHub Pages
 
 on:
   push:
-    branches: ["docs_pipeline"]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
