@@ -18,22 +18,22 @@ done
 case "$DE_CHOICE" in
     "Gnome")
         echo "Chosen DE: Gnome"
-        # pacman -S --noconfirm xorg xorg-server gnome gdm
-        # systemctl enable --now gdm.service
+        pacman -S --noconfirm xorg xorg-server gnome gdm
+        systemctl enable --now gdm.service
         ;;
     "Hyprland")
         echo "Chosen DE: Hyprland"
-        # pacman -S --noconfirm wayland uwsm hyprland
+        pacman -S --noconfirm wayland uwsm hyprland
         ;;
     "KDE")
         echo "Chosen DE: KDE"
-        # pacman -S --noconfirm xorg xorg-server plasma kde-desktop sddm
-		# systemctl enable --now sddm.service
+        pacman -S --noconfirm xorg xorg-server plasma kde-desktop sddm
+		systemctl enable --now sddm.service
         ;;
     "XFCE")
         echo "Chosen DE: XFCE"
-        # pacman -S --noconfirm xorg xorg-server xfce4 xfce4-goodies lightdm lightdm-gtk-greeter
-        # systemctl enable --now lightdm.service
+        pacman -S --noconfirm xorg xorg-server xfce4 xfce4-goodies lightdm lightdm-gtk-greeter
+        systemctl enable --now lightdm.service
         ;;
 esac
 
