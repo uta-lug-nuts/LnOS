@@ -2,7 +2,7 @@
 
 - [ ] Gather poll data
 - [ ] Make arch installer into a tui (gum ?)
-- [ ] Make LnOs-automatic-setup into tui
+- [X] Make LnOs-automatic-setup into tui
 - [ ] LnOs-auto-script needs:
 * ask what Desktop environment the user wants
     * if they want dotfiles for that environment (if applicable)
