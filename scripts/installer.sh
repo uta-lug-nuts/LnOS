@@ -1,8 +1,13 @@
 #!/bin/bash
 set -e
 
+# install tui fronted
+pacman -Sy --noconfirm gum
+
 # Function to configure the system (common for both architectures)
 configure_system() {
+		pacman -Sy --noconfirm gum
+
     # Set timezone
     ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime
     hwclock --systohc
@@ -20,32 +25,36 @@ configure_system() {
     echo "::1 localhost" >> /etc/hosts
 
     # Set root password 
-		rtpass="0"
-		rtpass_verify="1"
-		while [[ $rtpass != $rtpass_verify ]]; do
-			echo "Enter Root password: "
-			read rtpass
-			echo "enter root pass again: "
-			read rtpass_verify
+		while true; do
+			rtpass=$(gum input --password --placeholder="Enter root password: ")
+			rtpass_verify=$(gum input --password --placeholder="Enter root password again: ")
+			if [ "$rtpass" = "$rtpass_verify" ]; then
+    		echo "root:$rtpass" | chpasswd
+				break
+			else
+				gum confirm "Passwords do not match. Try again?"
+			fi
 		done
-    echo "root:$rtpass" | chpasswd
 
-		# create normal user
-		uspass="0"
-		uspass_verify="1"
-		username="empty"
-		
-		echo "Enter username:"
-		read username	
-		useradd -m -G audio,video,input,wheel,sys,log,rfkill,lp,adm -s /bin/bash $username
+	
+		# Create normal user using GUM
+    username=$(gum input --prompt "Enter username: ")
+    if [ -z "$username" ]; then
+        echo "Error: Username cannot be empty."
+        exit 1
+    fi
+    useradd -m -G audio,video,input,wheel,sys,log,rfkill,lp,adm -s /bin/bash "$username"
 
-		while [[ $uspass != $uspass_verify ]]; do
-			echo "Enter $username password: "
-			read uspass
-			echo "Enter $username password again: "
-			read uspass_verify
-		done
-		echo "bay:$uspass" | chpasswd
+    while true; do
+        uspass=$(gum input --password --placeholder="Enter password for $username: ")
+        uspass_verify=$(gum input --password --placeholder="Enter password for $username again: ")
+        if [ "$uspass" = "$uspass_verify" ]; then
+            echo "$username:$uspass" | chpasswd
+            break
+        else
+            gum confirm "Passwords do not match. Try again?" || exit 1
+        fi
+    done
 
 		# essential packages moving forward
     pacman -Syu --noconfirm
@@ -54,9 +63,7 @@ configure_system() {
     # Install additional tools (optional customization)
     pacman -S --noconfirm vim neovim git kitty
 
-		echo "Basic Arch Install done!"
-		echo "Please reboot and run part 2 (LnOs-auto-setup)"
-		echo "To setup LnOs Desktop Environment and applications"
+		gum style --border normal --margin "1" --padding "1" --border-foreground 212 "Basic Arch Install done! Please reboot and run part 2 (LnOs-auto-setup) to setup LnOs Desktop Environment and applications."
 
 		sleep 1 
 		exit 0
@@ -65,43 +72,19 @@ configure_system() {
 # Function to install on x86_64 (runs from Arch live ISO)
 install_x86_64() {
     # Prompt for disk
-    echo "Available disks:"
-    lsblk
-	
-		# Initialize DISK as empty
-		DISK=""
+    gum style --border normal --margin "1" --padding "1" --border-foreground 212 "Available disks:"
+		lsblk -d -o NAME,SIZE,TYPE | grep disk
+		DISK=$(lsblk -d -o NAME | grep -E 'sd[a-z]|nvme[0-9]n[0-9]' | gum choose --header "Select the disk to install on (or Ctrl-C to exit):" | sed 's|^|/dev/|')
 
-		# Prompt for disk until a valid block device is provided
-		while true; do
-				# Display available disks to guide the user
-				echo "Available disks:"
-				lsblk -d -o NAME,SIZE,TYPE | grep disk
-				echo "Enter the disk to install on (e.g., /dev/sda, or press Ctrl+C to exit):"
-				read -r DISK
+		if [ -z "$DISK" ]; then
+			gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: No disk selected."
+			exit 1
+		fi
 
-				# Ensure DISK is not empty
-				if [[ -z "$DISK" ]]; then
-						echo "Error: No disk specified. Please enter a valid disk."
-						continue
-				fi
-
-				# Check if DISK is a valid block device
-				if lsblk "$DISK" >/dev/null 2>&1; then
-						echo "Valid block device: $DISK"
-						break
-				else
-						echo "Error: $DISK does not exist or is not a valid block device."
-						echo "Please enter a valid disk (e.g., /dev/sda)."
-				fi
-		done
-
-
-		
-    echo "WARNING: This will erase all data on $DISK. Continue? (y/n)"
-    read CONFIRM
-    if [ "$CONFIRM" != "y" ]; then
-        exit 1
-    fi
+		# confirm disk selection
+		if ! gum confirm "WARNING: This will erase all data on $DISK. Continue ?"; then
+			exit 1
+		fi
 
     # Detect UEFI or BIOS
     if [ -d /sys/firmware/efi ]; then
@@ -114,10 +97,11 @@ install_x86_64() {
     RAM_GB=$(awk '/MemTotal/ {print int($2 / 1024 / 1024)}' /proc/meminfo)
     if [ $RAM_GB -lt 15 ]; then
         SWAP_SIZE=4096  # 4 GiB
+				gum style --border normal --margin "1" --padding "1" --border-foreground 212 "System has ${RAM_GB}. Creating 4 GiB swap partition"
         echo "System has ${RAM_GB} GB RAM. Creating 4 GiB swap partition."
     else
         SWAP_SIZE=0
-        echo "System has ${RAM_GB} GB RAM. No swap partition will be created."
+				gum style --border normal --margin "1" --padding "1" --border-foreground 212 "System has ${RAM_GB}."
     fi
 
     # Partition the disk UEFI and DOS compatiable
@@ -157,7 +141,7 @@ install_x86_64() {
     if [ $SWAP_SIZE -gt 0 ]; then
         mkswap ${DISK}${SWAP_PART}
     fi
-    mkfs.btrfs ${DISK}${ROOT_PART}
+    mkfs.btrfs -f ${DISK}${ROOT_PART}
 
     # Mount partitions
     mount ${DISK}${ROOT_PART} /mnt
@@ -193,36 +177,40 @@ install_x86_64() {
 
 # Function to prepare ARM SD card (for Raspberry Pi, run from existing Linux system)
 prepare_arm() {
-    # Prompt for SD card device
-    echo "Available disks:"
-    lsblk
-    echo "Enter the SD card device to prepare (e.g., /dev/mmcblk0):"
-    read DISK
-    echo "WARNING: This will erase all data on $DISK. Continue? (y/n)"
-    read CONFIRM
-    if [ "$CONFIRM" != "y" ]; then
+# Prompt for SD card device using GUM
+    gum style --border normal --margin "1" --padding "1" --border-foreground 212 "Available disks:"
+    lsblk -d -o NAME,SIZE,TYPE | grep disk
+    DISK=$(lsblk -d -o NAME | grep -E 'sd[a-z]|mmcblk[0-9]' | gum choose --header "Select the SD card device to prepare (e.g., /dev/mmcblk0):" | sed 's|^|/dev/|')
+
+    if [ -z "$DISK" ]; then
+        gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: No disk selected."
+        exit 1
+    fi
+
+    # Confirm disk selection
+    if ! gum confirm "WARNING: This will erase all data on $DISK. Continue?"; then
         exit 1
     fi
 
     # Partition the SD card
-    parted $DISK mklabel msdos
-    parted $DISK mkpart primary fat32 1MiB 513MiB
-    parted $DISK mkpart primary btrfs 513MiB 100%
+    parted "$DISK" mklabel msdos
+    parted "$DISK" mkpart primary fat32 1MiB 513MiB
+    parted "$DISK" mkpart primary btrfs 513MiB 100%
 
     # Format partitions
-    mkfs.fat -F32 ${DISK}p1
-    mkfs.btrfs ${DISK}p2
+    mkfs.fat -F32 "${DISK}p1"
+    mkfs.btrfs "${DISK}p2"
 
     # Mount partitions
-    mount ${DISK}p2 /mnt
+    mount "${DISK}p2" /mnt
     mkdir /mnt/boot
-    mount ${DISK}p1 /mnt/boot
+    mount "${DISK}p1" /mnt/boot
 
     # Download and extract Arch Linux ARM tarball (Raspberry Pi 4 example)
     wget http://os.archlinuxarm.org/os/ArchLinuxARM-rpi-4-ext4-root.tar.gz -O /tmp/archlinuxarm.tar.gz
     tar -xzf /tmp/archlinuxarm.tar.gz -C /mnt
 
-    # Install qemu-user-static if not present (for chroot on x86_64 host)
+    # Install qemu-user-static if not present
     if ! command -v qemu-arm-static &> /dev/null; then
         pacman -S --noconfirm qemu-user-static
     fi
@@ -232,7 +220,7 @@ prepare_arm() {
 
     # Unmount
     umount -R /mnt
-    echo "SD card preparation complete. Insert into Raspberry Pi and boot."
+    gum style --border normal --margin "1" --padding "1" --border-foreground 212 "SD card preparation complete. Insert into Raspberry Pi and boot."
 }
 
 # Main logic
@@ -241,6 +229,6 @@ if [ "$1" = "--target=x86_64" ]; then
 elif [ "$1" = "--target=arm" ]; then
     prepare_arm
 else
-    echo "Usage: $0 --target=[x86_64 | arm]"
+		gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Usage: $0 --target=[x86_64 | arm]"
     exit 1
 fi
