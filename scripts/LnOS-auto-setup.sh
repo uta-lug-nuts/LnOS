@@ -19,7 +19,11 @@
 # * allow users to choose a DE
 # * allow users to select the type of student they are (CSE, SWE, or Custom)
 # 	* after selection of type of student open a drop down of selected software to install
-# 	* this software will need to be vetted (check the sha256sum) and verify manually the GPG keys 
+# 	* this software will need to be vetted (check the sha256sum) and verify manually the GPG keys for AUR (arch user repository)
+#     * For pacman software that's checksumed and GPG signed, so there's no need to check
+#     * I am considering manual installation of the repo's instead of installation with paru 
+
+# This assumes the autosetup location is in a place that wont break the system
 
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Hello, there. Welcome to LNOS auto setup script"
 
@@ -78,14 +82,42 @@ done
 # We will store all packages in packages.txt
 while true; do
 
-	PACKGAGES="null"
+	PACMAN_PACKGAGES="null"
+
+	# As of now we wont enable paru since Arch User Repository isn't signed
+	# we will instead try to clone AUR packages and manually makepkg and verify them with sha256sum and ensure the GPG key is signed on Github
+	
+	# when installing paru make sure you download a released tag that's been signed and verified
+	# the one below will get the most recent version
+	# echo "Installing paru"
+	# sudo pacman -S --needed base-devel
+	# git clone https://aur.archlinux.org/paru.git
+	# cd paru
+	# makepkg -si
+	# cd ..
+	# rm -rf paru
+
 	case "$THEME" in
 		"CSE")
-			PACKGAGES=$(gum choose --no-limit --header "Package Choices")
+			PACMAN_PACKGAGES=$(cat pacman_packages/CSE_packages.txt | gum choose --no-limit --header "Pacman Package Choices")
+			# delimit packages selected by \n
+			PACMAN_PACKAGES=$(echo "$PACMAN_PACKAGES" | tr ' ' '\n')
+
+			# gum log --structured --level warning "Arch User Repository (AUR) isn't GPG signed and Verified, anyone can upload to it"
+			# gum log --structured --level warning "Selections below are hand picked and verified manually for this reason"
+
+			# PARU_PACKAGES=$(gum choose --no-limit --header "AUR Package Choices")
+			# PARU_PACKAGES=$(echo "$PARU_PACKAGES" | tr ' ' '\n')
 			
+			gum confirm "Happy with your selection ?" 
+
+			# download packages using pacman 
+
+			gum spin --spinner dot --title "Installing pacman packages..." -- sudo pacman -S $PACMAN_PACKAGES --noconfirm
+			# gum spin --spinner dot --title "Installing paru packages..." -- paru -S $PARU_PACACKAGES --noconfirm
 			;;
 		"CUSTOM")
-			PACKGAGES=$(gum input --header "Please write out the packages you want")
+			PACMAN_PACKGAGES=$(gum input --header "Please write out the packages you want")
 			;;
 	esac
 

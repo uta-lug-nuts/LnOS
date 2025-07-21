@@ -40,7 +40,8 @@ Documentation: Guides and support for UTA students.
 
 ## Installation Instructions
 
-Since Arch Linux requires a manual installation process, we’re working on a custom script to automate setup for The-LN-Project. For now, follow these steps to install a basic version:
+**NOTE:** This is highly experimental and not recommend to try on your dedicated machine yet since it hasn't been thoughrougly tested.
+please instead follow a real install guide from: [[https://wiki.archlinux.org/title/Installation_guide]] 
 
 1. Download Arch Linux ISO:
 
@@ -53,22 +54,29 @@ Use tools like rufus or Balena Etcher to write the ISO to a USB drive or SD card
 
 3. Boot and Install Base System:
 
-Follow the Arch Installation Guide.
-Install the minimal base system (base, linux, linux-firmware).
+clone our repo:
+```bash
+git clone https://github.com/uta-lug-nuts/LnOS.git
+```
 
+run:
+```bash
+./scripts/installer.sh --target=[x86_64 | arm]
+```
 
 4. Add CS Tools:
 
-After booting into the base system, install key packages:
-``` pacman -Syu vim git code gcc gdb python xfce4 hyprland ```
+After booting into the base system, clone our repo again:
+```bash
+git clone https://github.com/uta-lug-nuts/LnOS.git
+```
 
+run and follow the instructions in:
+```bash
+./scripts/LnOS-auto-setup.sh
+```
 
-5. Configure a desktop environment (e.g., XFCE or hyprland) or leave it as a minimal CLI setup.
-
-
-6. Future Automation:
-
-A custom installer script is in development to streamline this process. Stay tuned!
+Done! 
 
 
 
@@ -91,12 +99,15 @@ More tools will be added based on student feedback.
 [Linux From Scratch](https://linuxfromscratch.org)
 [Arch Linux ARM](https://archlinuxarm.org/)
 [Arch linux install guide](https://arch.d3sox.me/installation/setup-users)
+[GUM](https://github.com/charmbracelet/gum?tab=readme-ov-file)
+* this has seriously been amazing
 
 
 ## Known Issues
 
-Manual installation is complex for beginners—custom installer in progress.
-Limited ARM package testing—needs more validation on Raspberry Pi.
+* Manual installation is complex for beginners—custom installer in progress.
+* No testing done for ARM.
+* no iso specific to the repo 
 
 
 ## Credits
