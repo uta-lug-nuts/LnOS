@@ -62,6 +62,10 @@ git clone https://github.com/uta-lug-nuts/LnOS.git
 run:
 ```bash
 ./scripts/installer.sh --target=[x86_64 | arm]
+
+# Or (use with sudo for root priviledges)
+
+./scripts/installer.sh --target=x86_64
 ```
 
 4. Add CS Tools:
