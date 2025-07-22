@@ -1,4 +1,4 @@
-# The-LN-Project
+# LnOS a Customized Arch Distro tailored to UTA Students
 "A UTA flavored distro with all the applications and tools the different engineering majors use" - Professor Bakker
 
 ## Overview
