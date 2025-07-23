@@ -12,30 +12,32 @@ The-LN-Project is a custom Linux distribution based on Arch Linux, designed spec
 * Pre-configured tools for CS students, with plans to expand to other engineering disciplines (e.g., EE).
 * Easy installation process for students new to Linux.
 * Rolling updates to keep software current. (tool to update easily TUI)
+* Easy to read Documentation source not only for LnOS but for any configurable tool thats on Arch Linux
 
 ## Todo
-Click here to see items next to implement [Todo](TODO.md)
+* [Github issues](https://github.com/uta-lug-nuts/LnOS/issues)
 
 ## How to Contribute
-We welcome contributions from UTA students and faculty!
+We welcome contributions from UTA students, faculty and the FOSS Community!
 
-Report Issues: Use GitHub Issues to report bugs or suggest features.
-* please format your issues like so: [Issue Template](docs/issues.md)
-Add Tools: Propose packages for CS or other disciplines.
-Improve Docs: Help write guides or improve this README.
+### Report Issues: Use GitHub Issues to report bugs or suggest features.
+* [Create a Issue](https://github.com/uta-lug-nuts/LnOS/issues/new/choose)
 
-### Testing
+
+### Testing / Developers Guide
 
 Click here to see guide on testing: [Testing](docs/testing.md)
+* [Developers Guide WIP](docs/Developer-Guide.md)
 (helpful when contributing)
 
 ## Features
 
 * Target Architectures: x86_64 and ARM (Raspberry Pi compatible).
+  * Arm we're still researching (v7 or v8)
 * Base System: Minimal Arch Linux with a rolling release model.
-CS Tools: Includes VSCode, Vim, Git, GCC, GDB, Python, and more.
-Desktop Environment: Lightweight options like XFCE or i3 (configurable during install).
-Documentation: Guides and support for UTA students.
+* Major Themed Tools: Includes VSCode, Vim, Git, GCC, GDB, Python, and more.
+* Desktop Environment: Lightweight options like Hyprland, XFCE, or i3 and more! 
+* Documentation: Guides and support for UTA students on installation and customization of tools.
 
 
 ## Installation Instructions
@@ -49,7 +51,7 @@ Get the latest ISO from [[https://archlinux.org/download/]]
 
 2. Create Bootable Media:
 
-Use tools like rufus or Balena Etcher to write the ISO to a USB drive or SD card.
+Use tools like [rufus](https://rufus.ie/en/) or [Balena Etcher](https://www.balena.io/etcher) to write the ISO to a USB drive or SD card.
 
 
 3. Boot and Install Base System:
@@ -59,9 +61,9 @@ clone our repo:
 git clone https://github.com/uta-lug-nuts/LnOS.git
 ```
 
-run:
+run and choose the target based on cpu architecture:
 ```bash
-./scripts/installer.sh --target=[x86_64 | arm]
+./scripts/LnOS-installer.sh --target=[x86_64 | arm]
 ```
 
 4. Add CS Tools:
@@ -73,7 +75,7 @@ git clone https://github.com/uta-lug-nuts/LnOS.git
 
 run and follow the instructions in:
 ```bash
-./scripts/LnOS-auto-setup.sh
+./scripts/Environment-setup.sh
 ```
 
 Done! 
@@ -83,7 +85,7 @@ Done!
 ## Included Packages (CS Focus)
 Here’s a preliminary list of tools for CS students:
 
-* Editors: VSCode (code), Vim
+* Editors: VSCode (vscode), Vim
 * Version Control: Git
 * Compilers/Debuggers: GCC, GDB
 * Languages: Python, C/C++
@@ -105,13 +107,15 @@ More tools will be added based on student feedback.
 
 ## Known Issues
 
-* Manual installation is complex for beginners—custom installer in progress.
+* Not fully reliable yet (still not even a 1.0.0 release)
 * No testing done for ARM.
 * no iso specific to the repo 
+* No GH Action pipeline test 
 
 
 ## Credits
 
 Inspired by Professor Bakker’s and UTA LUGNUTS Community of a vision for a UTA-specific distro.
-Built on the amazing work of the Arch Linux community.
 
+Built on the amazing work of the Arch Linux community.
+Install Files look beautiful from the wonderful tool: [GUM](https://github.com/charmbracelet/gum?tab=readme-ov-file)
