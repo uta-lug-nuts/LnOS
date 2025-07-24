@@ -30,7 +30,7 @@ git clone https://github.com/uta-lug-nuts/LnOS.git
 * Next what you'll want to do is click New ![click](images/Pasted image 20250716192254.png)
 
 * from there will be a popup that asks you a few things, you can fill out the information like this:
-![popup[](images/Pasted image 20250716192358.png)
+![popup](images/Pasted image 20250716192358.png)
 * Then Click finish.
 
 * From there click on the installer you just made
@@ -46,7 +46,7 @@ git clone https://github.com/uta-lug-nuts/LnOS.git
 
 ## 5. Running the VM
 Simply Click Start and the VM will fire up, you'll want to select install medium:
-![[images/Pasted image 20250716193037.png]]
+![bootscreen](images/Pasted image 20250716193037.png)
 Once you're in you can start testing the scripts by running 
 ```bash
 /mnt/scripts/installer.sh --target=x86_64
@@ -57,7 +57,7 @@ cp -R /mnt/
 # Then run the cool scripts underneath here
 ```
 
-![[images/Pasted image 20250716193209.png]]
+![loggedin](images/Pasted image 20250716193209.png)
 
 * Future Testing Documentation will be written here as we go.
 * First iteration will be testing on x86_64 first, we'll move to arm later since I doubt many students would utilize it as of now (especially with the project just starting)
