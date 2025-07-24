@@ -14,7 +14,7 @@ The-LN-Project is a custom Linux distribution based on Arch Linux, designed spec
 * Rolling updates to keep software current. (tool to update easily TUI)
 
 ## Todo
-Click here to see items next to implement [Todo](TODO.md)
+Click here to see items next to implement [Todo](docs/TODO.md)
 
 ## How to Contribute
 We welcome contributions from UTA students and faculty!
