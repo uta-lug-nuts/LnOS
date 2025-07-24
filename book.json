@@ -1,3 +1,4 @@
 {
+    "_comment": "Set the root directory for documentation in /docs",
     "root": "./docs"
 }
