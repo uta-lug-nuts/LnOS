@@ -1,1 +1,4 @@
 .obsidian/
+
+# Ignore output from building Honkit 
+_book/ 
