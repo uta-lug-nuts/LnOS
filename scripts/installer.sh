@@ -211,7 +211,7 @@ configure_system() {
 # Prompts the user and parititions the users selected disk from what we can find
 # This makes 2-3 parititions: BOOT, SWAP (if < 15GB ram), BTRFS Linux filesystem
 # * Automatically detects UEFI or BIOS, this will mount the parititions as well
-partition_drives()
+setup_drive()
 {
 	# Prompt for disk
 	gum style --border normal --margin "1" --padding "1" --border-foreground 212 "Available disks:"
@@ -314,13 +314,13 @@ copy_lnos_files()
 install_x86_64() 
 {
 		# prompt and paritition the drives
-		gum spin --spinner dot --title "Partitioning Drives..." -- partition_drives 
+		setup_drive 
     
     # Install base system (Zen kernel cause it's cool)
     gum spin --spinner dot --title "Installing base system..." -- pacstrap /mnt base linux-zen linux-firmware btrfs-progs
 
-    # Copy LnOS repository files to target system
-		gum spin --spinner dot --title "Copying LnOS files..." -- copy_lnos_files
+		# Copy LnOS repository files to target system (in order for the spin to happen you have to startup a new bash instance)
+		gum spin --spinner dot --title "copying LnOS files" -- bash -c "$(declare -f copy_lnos_files); copy_lnos_files" 
 
     # Generate fstab
     genfstab -U /mnt >> /mnt/etc/fstab
