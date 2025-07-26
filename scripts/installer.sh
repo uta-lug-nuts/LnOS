@@ -7,22 +7,22 @@ if ! command -v gum &> /dev/null; then
 fi
 
 # logging functions (only for 1 line)
-gum_echo() 
+gum_echo()
 {
     gum style --border normal --margin "1 2" --padding "2 4" --border-foreground 130 "$@"
 }
-gum_error() 
+gum_error()
 {
     gum style --border normal --margin "1 2" --padding "2 4" --border-double --border-foreground 1 "$@"
 }
-gum_complete() 
+gum_complete()
 {
     gum style --border normal --margin "1 2" --padding "2 4" --border-foreground 158 "$@"
 }
 
 # Combines part 2 into part 1 script as to make installation easier
 # sets up the desktop environment and packages
-setup_desktop_and_packages() 
+setup_desktop_and_packages()
 {
     local username="$1" # Pass username as parameter
 
@@ -30,10 +30,7 @@ setup_desktop_and_packages()
 
     # Desktop Environment Installation
     while true; do
-			DE_CHOICE=$(gum choose --header "Choose your Desktop Environment (DE):" /
-			"Gnome(good for beginners, similar to mac)" "KDE(good for beginners, similar to windows)" /
-			"Hyprland(Tiling WM, basic dotfiles but requires more DIY)" "DWM(similar to Hyprland)" /
-			"TTY (no install required)")
+			DE_CHOICE=$(gum choose --header 'Choose your Desktop Environment (DE):' 'Gnome(good for beginners, similar to mac)" "KDE(good for beginners, similar to windows)' 'Hyprland(Tiling WM, basic dotfiles but requires more DIY)' 'DWM(similar to Hyprland)' 'TTY (no install required)')
 			if [[ "$DE_CHOICE" == "TTY (no install required)" ]]; then
 						gum_echo "TTY is preinstalled !"
             break
@@ -55,13 +52,13 @@ setup_desktop_and_packages()
             ;;
         "Hyprland(Tiling WM, basic dotfiles but requires more DIY)")
             gum_echo "Installing Hyprland..."
-            pacman -S --noconfirm wayland hyprland uwsm 
+            pacman -S --noconfirm wayland hyprland uwsm
             ;;
 				"DWM(similar to Hyprland)")
             gum_echo "Installing DWM..."
-						gum_echo "[WARNING] DWM requires more work in the future, for now this option doesn't do anything"
-            #pacman -S --noconfirm uwsm 
-						#systemctl enable lightdm.service
+			gum_echo "[WARNING] DWM requires more work in the future, for now this option doesn't do anything"
+            #pacman -S --noconfirm uwsm
+            #systemctl enable lightdm.service
             ;;
     esac
 
@@ -117,8 +114,6 @@ setup_desktop_and_packages()
             if [ -n "$PACMAN_PACKAGES" ]; then
                 gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm $PACMAN_PACKAGES
             fi
-
-
             ;;
     esac
 
@@ -127,7 +122,8 @@ setup_desktop_and_packages()
 }
 
 # Function to configure the system (common for both architectures)
-configure_system() {
+configure_system()
+{
 		# install gum again for pretty format
     pacman -Sy --noconfirm gum
 
@@ -190,7 +186,7 @@ configure_system() {
     # Configure sudoers for wheel group
     pacman -S --noconfirm sudo
     echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-wheel
-    chmod 440 /etc/sudoers.d/10-wheel 
+    chmod 440 /etc/sudoers.d/10-wheel
 
     # Update and Install essential packages
     pacman -Syu --noconfirm
@@ -200,10 +196,10 @@ configure_system() {
     systemctl enable dhcpcd
     systemctl enable NetworkManager
 
-    # setup the desktop environment 
+    # setup the desktop environment
     setup_desktop_and_packages "$username"
 
-		gum_echo "LnOS Basic DE / Package install completed!"
+	gum_echo "LnOS Basic DE / Package install completed!"
 
     exit 0
 }
@@ -219,76 +215,76 @@ setup_drive()
 	DISK=$(lsblk -d -o NAME | grep -E 'sd[a-z]|nvme[0-9]n[0-9]' | gum choose --header "Select the disk to install on (or Ctrl-C to exit):" | sed 's|^|/dev/|')
 
 	if [ -z "$DISK" ]; then
-			gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: No disk selected."
-			exit 1
+		gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: No disk selected."
+		exit 1
 	fi
 
 	# Confirm disk selection
 	if ! gum confirm "WARNING: This will erase all data on $DISK. Continue?"; then
-			exit 1
+		exit 1
 	fi
 
 	# Detect UEFI or BIOS
 	if [ -d /sys/firmware/efi ]; then
-			UEFI=1
+		UEFI=1
 	else
-			UEFI=0
+		UEFI=0
 	fi
 
 	# Check RAM and decide swap size
 	RAM_GB=$(awk '/MemTotal/ {print int($2 / 1024 / 1024)}' /proc/meminfo)
 	if [ $RAM_GB -lt 15 ]; then
-			SWAP_SIZE=4096  # 4 GiB
-			gum_echo "System has ${RAM_GB}GB RAM. Creating 4 GiB swap partition"
+		SWAP_SIZE=4096  # 4 GiB
+		gum_echo "System has ${RAM_GB}GB RAM. Creating 4 GiB swap partition"
 	else
-			SWAP_SIZE=0
-			gum_echo "System has ${RAM_GB}GB RAM."
+		SWAP_SIZE=0
+		gum_echo "System has ${RAM_GB}GB RAM."
 	fi
 
 	# Partition the disk UEFI and DOS compatible
 	if [ $UEFI -eq 1 ]; then
-			parted $DISK mklabel gpt
-			parted $DISK mkpart ESP fat32 1MiB 513MiB
-			parted $DISK set 1 esp on
-			if [ $SWAP_SIZE -gt 0 ]; then
-					parted $DISK mkpart swap linux-swap 513MiB $((513 + SWAP_SIZE))MiB
-					parted $DISK mkpart root btrfs $((513 + SWAP_SIZE))MiB 100%
-					SWAP_PART=2
-					ROOT_PART=3
-			else
-					parted $DISK mkpart root btrfs 513MiB 100%
-					ROOT_PART=2
-			fi
-			BOOT_PART=1
+		parted $DISK mklabel gpt
+		parted $DISK mkpart ESP fat32 1MiB 513MiB
+		parted $DISK set 1 esp on
+		if [ $SWAP_SIZE -gt 0 ]; then
+				parted $DISK mkpart swap linux-swap 513MiB $((513 + SWAP_SIZE))MiB
+				parted $DISK mkpart root btrfs $((513 + SWAP_SIZE))MiB 100%
+				SWAP_PART=2
+				ROOT_PART=3
+		else
+				parted $DISK mkpart root btrfs 513MiB 100%
+				ROOT_PART=2
+		fi
+		BOOT_PART=1
 	else
-			parted $DISK mklabel msdos
-			if [ $SWAP_SIZE -gt 0 ]; then
-					parted $DISK mkpart primary linux-swap 1MiB ${SWAP_SIZE}MiB
-					parted $DISK mkpart primary btrfs ${SWAP_SIZE}MiB 100%
-					parted $DISK set 2 boot on
-					SWAP_PART=1
-					ROOT_PART=2
-			else
-					parted $DISK mkpart primary btrfs 1MiB 100%
-					parted $DISK set 1 boot on
-					ROOT_PART=1
-			fi
+		parted $DISK mklabel msdos
+		if [ $SWAP_SIZE -gt 0 ]; then
+				parted $DISK mkpart primary linux-swap 1MiB ${SWAP_SIZE}MiB
+				parted $DISK mkpart primary btrfs ${SWAP_SIZE}MiB 100%
+				parted $DISK set 2 boot on
+				SWAP_PART=1
+				ROOT_PART=2
+		else
+				parted $DISK mkpart primary btrfs 1MiB 100%
+				parted $DISK set 1 boot on
+				ROOT_PART=1
+		fi
 	fi
 
 	# Format partitions
 	if [ $UEFI -eq 1 ]; then
-			mkfs.fat -F32 ${DISK}${BOOT_PART}
+		mkfs.fat -F32 ${DISK}${BOOT_PART}
 	fi
 	if [ $SWAP_SIZE -gt 0 ]; then
-			mkswap ${DISK}${SWAP_PART}
+		mkswap ${DISK}${SWAP_PART}
 	fi
 	mkfs.btrfs -f ${DISK}${ROOT_PART}
 
 	# Mount partitions
 	mount ${DISK}${ROOT_PART} /mnt
 	if [ $UEFI -eq 1 ]; then
-			mkdir /mnt/boot
-			mount ${DISK}${BOOT_PART} /mnt/boot
+		mkdir /mnt/boot
+		mount ${DISK}${BOOT_PART} /mnt/boot
 	fi
 
 }
@@ -298,8 +294,8 @@ copy_lnos_files()
 {
 	LNOS_REPO="/root/LnOS"
 	if [ ! -d "$LNOS_REPO" ]; then
-			gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: LnOS repository not found at $LNOS_REPO. Please clone it before running the installer."
-			exit 1
+		gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: LnOS repository not found at $LNOS_REPO. Please clone it before running the installer."
+		exit 1
 	fi
 	mkdir -p /mnt/root/LnOS
 	cp -r "$LNOS_REPO/scripts/pacman_packages" /mnt/root/LnOS/
@@ -311,23 +307,24 @@ copy_lnos_files()
 }
 
 # Function to install on x86_64 (runs from Arch live ISO)
-install_x86_64() 
+install_x86_64()
 {
-		# prompt and paritition the drives
-		setup_drive 
-    
-    # Install base system (Zen kernel cause it's cool)
-    gum spin --spinner dot --title "Installing base system..." -- pacstrap /mnt base linux-zen linux-firmware btrfs-progs
+	# prompt and paritition the drives
+	setup_drive
 
-		# Copy LnOS repository files to target system (in order for the spin to happen you have to startup a new bash instance)
-		gum spin --spinner dot --title "copying LnOS files" -- bash -c "$(declare -f copy_lnos_files); copy_lnos_files" 
+    # Install base system (Zen kernel cause it's cool)
+    gum_echo "Installing base system, will take some time (grab a coffee)"
+    pacstrap /mnt base linux-zen linux-firmware btrfs-progs
+
+	# Copy LnOS repository files to target system (in order for the spin to happen you have to startup a new bash instance)
+	gum spin --spinner dot --title "copying LnOS files" -- bash -c "$(declare -f copy_lnos_files); copy_lnos_files"
 
     # Generate fstab
     genfstab -U /mnt >> /mnt/etc/fstab
 
-		# Chroot and configure the OS, 
-		# before we enter chroot we also need to declare
-		# these bash functions as well so they can run
+	# Chroot and configure the OS,
+	# before we enter chroot we also need to declare
+	# these bash functions as well so they can run
     arch-chroot /mnt /bin/bash -c "$(declare -f configure_system setup_desktop_and_packages); configure_system"
 
     # Cleanup and Install GRUB
@@ -348,7 +345,7 @@ install_x86_64()
 }
 
 # Function to prepare ARM SD card (for Raspberry Pi, run from existing Linux system)
-prepare_arm() 
+prepare_arm()
 {
     # Prompt for SD card device using GUM
     gum style --border normal --margin "1" --padding "1" --border-foreground 212 "Available disks:"
@@ -426,7 +423,7 @@ elif [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
 		'[--target]: sets the installer"s target architecture (for the cpu)' \
 		'Please check your cpu architecture by running: uname -m ' \
 		'[-h] or [--help]: Brings up this help menu'
-		
+
 	exit 0
 else
 	gum style \
@@ -438,4 +435,3 @@ else
 		'[-h] or [--help]: Brings up this help menu'
 	exit 1
 fi
-
