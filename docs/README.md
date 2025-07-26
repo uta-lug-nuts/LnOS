@@ -14,19 +14,19 @@ The-LN-Project is a custom Linux distribution based on Arch Linux, designed spec
 * Rolling updates to keep software current. (tool to update easily TUI)
 
 ## Todo
-Click here to see items next to implement [Todo](docs/TODO.md)
+Click here to see items next to implement [Todo](TODO.md)
 
 ## How to Contribute
 We welcome contributions from UTA students and faculty!
 
 Report Issues: Use GitHub Issues to report bugs or suggest features.
-* please format your issues like so: [Issue Template](docs/issues.md)
+* please format your issues like so: [Issue Template](issues.md)
 Add Tools: Propose packages for CS or other disciplines.
 Improve Docs: Help write guides or improve this README.
 
 ### Testing
 
-Click here to see guide on testing: [Testing](docs/testing.md)
+Click here to see guide on testing: [Testing](testing.md)
 (helpful when contributing)
 
 ## Features
