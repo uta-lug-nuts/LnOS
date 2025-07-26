@@ -316,6 +316,8 @@ install_x86_64()
     gum_echo "Installing base system, will take some time (grab a coffee)"
     pacstrap /mnt base linux-zen linux-firmware btrfs-progs
 
+    gum_echo "base system install done!"
+
 	# Copy LnOS repository files to target system (in order for the spin to happen you have to startup a new bash instance)
 	gum spin --spinner dot --title "copying LnOS files" -- bash -c "$(declare -f copy_lnos_files); copy_lnos_files"
 
