@@ -213,7 +213,7 @@ setup_drive()
     DISK_SELECTION=$(lsblk -do NAME,SIZE,MODEL | gum choose --header "Select the disk to install on (or Ctrl-C to exit):")
 
     # Grab only the path of the disk
-    DISK=$(echo "$DISK_SELECTION" | awk '{print $1}')
+    DISK= "dev/$(echo "$DISK_SELECTION" | awk '{print $1}')"
 
     if [ -z "$DISK" ]; then
         gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: No disk selected."
