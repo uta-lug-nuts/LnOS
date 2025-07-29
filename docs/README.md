@@ -1,4 +1,4 @@
-# The-LN-Project
+# LnOS a Customized Arch Distro tailored to UTA Students
 "A UTA flavored distro with all the applications and tools the different engineering majors use" - Professor Bakker
 
 ## Overview
@@ -26,8 +26,7 @@ We welcome contributions from UTA students, faculty and the FOSS Community!
 
 ### Testing / Developers Guide
 
-Click here to see guide on testing: [Testing](docs/testing.md)
-* [Developers Guide WIP](docs/Developer-Guide.md)
+Click here to see guide on testing: [Testing](testing.md)
 (helpful when contributing)
 
 ## Features

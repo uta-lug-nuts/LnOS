@@ -41,6 +41,10 @@ jobs:
             fi
           done
 
+      - name: Create book.json
+        run: | 
+          echo "{ \"root\": \"./docs\" }" > book.json
+
       - name: Build Honkit Site
         run: npx honkit build
 
