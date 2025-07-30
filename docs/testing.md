@@ -4,8 +4,8 @@ For testing this is the process I follow
 
 ## 1. Install Virtual Box
 
-you'll want to obtain virtualbox for whichever distro / OS you're on. 
-You can go here and grab it: [virtualbox](https://www.virtualbox.org/wiki/Downloads) 
+you'll want to obtain virtualbox for whichever distro / OS you're on.
+You can go here and grab it: [virtualbox](https://www.virtualbox.org/wiki/Downloads)
 
 ## 2. Install Arch linux iso installer
 
@@ -15,7 +15,8 @@ after you have it downloaded we can move onto using virtual box.
 
 ## 3. Fork / Clone our Repo
 
-![github](images/Pasted image 20250716192747.png)
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192747.png" alt="LnOS GH" width="50%">
+
 visit our GH here, oh wait you're already here! (or if theres online documentation then [here!](https://github.com/uta-lug-nuts/LnOS?tab=readme-ov-file#))
 
 you can clone the repo by running
@@ -26,38 +27,49 @@ git clone https://github.com/uta-lug-nuts/LnOS.git
 ## 4. Launch Virtualbox and Configure your iso
 
 * You should initially see something like this.
-![terminal](images/Pasted image 20250716192212.png)
-* Next what you'll want to do is click New ![click](images/Pasted image 20250716192254.png)
+
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192212.png" alt="virtualbox" >
+
+* Next what you'll want to do is click New: <img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192254.png" alt="New button">
 
 * from there will be a popup that asks you a few things, you can fill out the information like this:
-![popup](images/Pasted image 20250716192358.png)
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192358.png" alt="archinstaller">
+
 * Then Click finish.
 
 * From there click on the installer you just made
-![installer](images/Pasted image 20250716192440.png)
-* then click settings ![settings](images/Pasted image 20250716192505.png)
+
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192440.png" alt="installerpage>
+
+* then click settings <img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192505.png" alt="settings cog">
 
 * From inside settings, click on Shared Folder
-![Shared folder](images/Pasted image 20250716192541.png)
+
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192541.png" alt="shared folder">
+
 * click on the little + next to shared folders
-![plus](images/Pasted image 20250716192633.png)
-* You'll get this popup that will ask you for the folder path and name, I recommend you link the Fork or cloned version of LnOS repo to this so that as you make changes to the scripts they stay up to date. 
-![popupagain](images/Pasted image 20250716192624.png)
+
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192633.png" alt="plus icon">
+
+* You'll get this popup that will ask you for the folder path and name, I recommend you link the Fork or cloned version of LnOS repo to this so that as you make changes to the scripts they stay up to date.
+
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716192624.png" alt="popup 2">
 
 ## 5. Running the VM
 Simply Click Start and the VM will fire up, you'll want to select install medium:
-![bootscreen](images/Pasted image 20250716193037.png)
-Once you're in you can start testing the scripts by running 
+
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716193037.png" alt="arch image boot">
+
+> **NOTE**  
+> Please use this path: '/run/LnOS' for the mount point
+
+Once you're in you can start testing the scripts by running
 ```bash
-/mnt/scripts/installer.sh --target=x86_64
-```
-or you can just copy the installer to the current directory you're in
-```bash
-cp -R /mnt/
-# Then run the cool scripts underneath here
+cp -r /run/LnOS
+./LnOS/scripts/LnOS-installer.sh --target=x86_64
 ```
 
-![loggedin](images/Pasted image 20250716193209.png)
+<img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Pasted%20image%2020250716193209.png" alt="logged in">
 
 * Future Testing Documentation will be written here as we go.
 * First iteration will be testing on x86_64 first, we'll move to arm later since I doubt many students would utilize it as of now (especially with the project just starting)
