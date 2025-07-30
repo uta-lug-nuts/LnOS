@@ -14,7 +14,7 @@ The-LN-Project is a custom Linux distribution based on Arch Linux, designed spec
 * Rolling updates to keep software current. (tool to update easily TUI)
 * Easy to read Documentation source not only for LnOS but for any configurable tool thats on Arch Linux
 
-## Todo
+## Want to request a feature or report a bug, open an Issue!
 * [Github issues](https://github.com/uta-lug-nuts/LnOS/issues)
 
 ## How to Contribute
@@ -31,18 +31,20 @@ Click here to see guide on testing: [Testing](testing.md)
 
 ## Features
 
-* Target Architectures: x86_64 and ARM (Raspberry Pi compatible).
+* **Target Architectures:** x86_64 and (aarch64 / aarch32) 
   * Arm we're still researching (v7 or v8)
-* Base System: Minimal Arch Linux with a rolling release model.
-* Major Themed Tools: Includes VSCode, Vim, Git, GCC, GDB, Python, and more.
-* Desktop Environment: Lightweight options like Hyprland, XFCE, or i3 and more! 
+* **Base System:** Minimal Arch Linux with a rolling release model.
+* **Major Themed presets:** Engineers will have preset options to choose  
+* **Desktop Environment:** [Gnome](https://www.gnome.org/)(similar to macos) [KDE](https://kde.org/)(similar to windows) and Tiling Window Managers like [Hyprland](https://hypr.land/), and [DWM](https://dwm.suckless.org/).
+  * To learn more about Tiling Window Managers [click here](tilingWM.md)
 * Documentation: Guides and support for UTA students on installation and customization of tools.
 
 
 ## Installation Instructions
 
-**NOTE:** This is highly experimental and not recommend to try on your dedicated machine yet since it hasn't been thoughrougly tested.
-please instead follow a real install guide from: [[https://wiki.archlinux.org/title/Installation_guide]] 
+>**NOTE:**  
+>This is highly experimental and not recommend to try on your dedicated machine yet since it hasn't been thoughrougly tested.
+>please instead follow a real install guide from: [[https://wiki.archlinux.org/title/Installation_guide]] 
 
 1. Download Arch Linux ISO:
 
