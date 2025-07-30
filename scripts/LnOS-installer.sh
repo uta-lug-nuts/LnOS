@@ -52,9 +52,9 @@ setup_desktop_and_packages()
             ;;
         "Hyprland(Tiling WM, basic dotfiles but requires more DIY)")
             gum_echo "Installing Hyprland..."
-            pacman -S --noconfirm wayland hyprland uwsm
+            pacman -S --noconfirm wayland hyprland
             ;;
-				"DWM(similar to Hyprland)")
+		"DWM(similar to Hyprland)")
             gum_echo "Installing DWM..."
 			gum_echo "[WARNING] DWM requires more work in the future, for now this option doesn't do anything"
             #pacman -S --noconfirm uwsm

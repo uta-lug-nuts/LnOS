@@ -1,2 +1,9 @@
-code
 bat
+openssh
+code
+neovim
+gcc
+gdb
+cmake
+python
+docker
