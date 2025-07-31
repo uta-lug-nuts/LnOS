@@ -75,3 +75,4 @@ cp -r /run/LnOS
 
 * Future Testing Documentation will be written here as we go.
 * First iteration will be testing on x86_64 first, we'll move to arm later since I doubt many students would utilize it as of now (especially with the project just starting)
+
