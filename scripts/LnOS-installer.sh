@@ -234,15 +234,16 @@ configure_system()
 # * Automatically detects UEFI or BIOS, this will mount the parititions as well
 setup_drive()
 {
-	# Prompt for disk
-	gum style --border normal --margin "1" --padding "1" --border-foreground 212 "Available disks:"
-	lsblk -d -o NAME,SIZE,TYPE | grep disk
-	DISK=$(lsblk -d -o NAME | grep -E 'sd[a-z]|nvme[0-9]n[0-9]' | gum choose --header "Select the disk to install on (or Ctrl-C to exit):" | sed 's|^|/dev/|')
+	# Prompt user to select a disk
+    DISK_SELECTION=$(lsblk -do NAME,SIZE,MODEL | gum choose --header "Select the disk to install on (or Ctrl-C to exit):")
 
-	if [ -z "$DISK" ]; then
-		gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: No disk selected."
-		exit 1
-	fi
+    # Grab only the path of the disk
+    DISK="/dev/$(echo "$DISK_SELECTION" | awk '{print $1}')"
+
+    if [ -z "$DISK" ]; then
+        gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: No disk selected."
+        exit 1
+    fi
 
 	# Confirm disk selection
 	if ! gum confirm "WARNING: This will erase all data on $DISK. Continue?"; then
