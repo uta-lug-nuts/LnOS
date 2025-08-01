@@ -215,31 +215,6 @@ jobs:
             
             **Note**: Large files (>1GB) are compressed with XZ to stay under GitHub's 2GB limit. Files under 1GB are uncompressed and ready to use.
             
-            ### Usage:
-            
-            #### x86_64 ISO (VMs and x86_64 systems):
-            1. Download `lnos-*-x86_64.iso` or `lnos-*-x86_64.iso.xz`
-            2. If compressed: `xz -d lnos-*.iso.xz`
-            3. Write to USB: `dd if=lnos-*.iso of=/dev/sdX bs=4M status=progress`
-            4. Boot from USB
-            5. Run installer: `cd /root/LnOS/scripts && ./LnOS-installer.sh --target=x86_64`
-            
-            #### ARM64 IMG (Raspberry Pi 4):
-            1. Download `lnos-arm64-*.img` or `lnos-arm64-*.img.xz`
-            2. If compressed: `xz -d lnos-arm64-*.img.xz`
-            3. Write to SD card: `dd if=lnos-arm64-*.img of=/dev/sdX bs=4M status=progress`
-            4. Boot Raspberry Pi from SD card
-            5. Run installer: `cd /root/LnOS/scripts && ./LnOS-installer.sh --target=aarch64`
-            
-            #### Alternative: Direct decompression to device (saves disk space):
-            ```bash
-            # For x86_64 ISO:
-            xz -dc lnos-*.iso.xz | dd of=/dev/sdX bs=4M status=progress
-            
-            # For ARM64 IMG:
-            xz -dc lnos-arm64-*.img.xz | dd of=/dev/sdX bs=4M status=progress
-            ```
-            
             ### Checksums:
             ```
             $(cd isos && sha256sum *.xz 2>/dev/null || echo "Checksums will be calculated...")
