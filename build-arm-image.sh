@@ -53,21 +53,53 @@ parted "$LOOP_DEV" mkpart primary fat32 1MiB 513MiB
 parted "$LOOP_DEV" mkpart primary ext4 513MiB 100%
 parted "$LOOP_DEV" set 1 boot on
 
-# Refresh partition table
+# Refresh partition table and wait for device nodes
 partprobe "$LOOP_DEV"
+sleep 2
 
-# Format partitions
-print_status "Formatting partitions..."
-mkfs.fat -F32 "${LOOP_DEV}p1"
-mkfs.ext4 "${LOOP_DEV}p2"
+# Check if partition devices exist, create them if needed
+if [ ! -e "${LOOP_DEV}p1" ]; then
+    # Try alternative method using kpartx
+    if command -v kpartx >/dev/null 2>&1; then
+        print_status "Using kpartx to create partition devices..."
+        kpartx -av "$LOOP_DEV"
+        PART1="/dev/mapper/$(basename $LOOP_DEV)p1"
+        PART2="/dev/mapper/$(basename $LOOP_DEV)p2"
+    else
+        print_error "Cannot create partition devices. Container limitations."
+        print_status "Creating unpartitioned filesystem instead..."
+        
+        # Create a simple unpartitioned image with just ext4
+        mkfs.ext4 "$LOOP_DEV"
+        
+        # Mount and set up
+        MOUNT_DIR="/tmp/lnos-arm-mount"
+        mkdir -p "$MOUNT_DIR"
+        mount "$LOOP_DEV" "$MOUNT_DIR"
+        mkdir -p "$MOUNT_DIR/boot"
+        
+        # Skip boot partition setup for now
+        SKIP_BOOT=1
+    fi
+else
+    PART1="${LOOP_DEV}p1"
+    PART2="${LOOP_DEV}p2"
+fi
 
-# Mount partitions
-print_status "Mounting partitions..."
-MOUNT_DIR="/tmp/lnos-arm-mount"
-mkdir -p "$MOUNT_DIR"
-mount "${LOOP_DEV}p2" "$MOUNT_DIR"
-mkdir -p "$MOUNT_DIR/boot"
-mount "${LOOP_DEV}p1" "$MOUNT_DIR/boot"
+if [ "$SKIP_BOOT" != "1" ]; then
+    # Format partitions
+    print_status "Formatting partitions..."
+    mkfs.fat -F32 "$PART1"
+    mkfs.ext4 "$PART2"
+    
+    # Mount partitions
+    print_status "Mounting partitions..."
+    MOUNT_DIR="/tmp/lnos-arm-mount"
+    mkdir -p "$MOUNT_DIR"
+    mount "$PART2" "$MOUNT_DIR"
+    mkdir -p "$MOUNT_DIR/boot"
+    mount "$PART1" "$MOUNT_DIR/boot"
+fi
 
 # Download and extract Arch Linux ARM
 print_status "Downloading Arch Linux ARM..."
@@ -128,10 +160,18 @@ chroot "$MOUNT_DIR" systemctl enable NetworkManager
 
 # Clean up
 print_status "Cleaning up..."
-umount "$MOUNT_DIR/boot"
-umount "$MOUNT_DIR"
-rmdir "$MOUNT_DIR"
-losetup -d "$LOOP_DEV"
+if [ "$SKIP_BOOT" != "1" ]; then
+    umount "$MOUNT_DIR/boot" 2>/dev/null || true
+fi
+umount "$MOUNT_DIR" 2>/dev/null || true
+rmdir "$MOUNT_DIR" 2>/dev/null || true
+
+# Clean up device mappings
+if command -v kpartx >/dev/null 2>&1; then
+    kpartx -dv "$LOOP_DEV" 2>/dev/null || true
+fi
+
+losetup -d "$LOOP_DEV" 2>/dev/null || true
 rm -f "/tmp/archlinuxarm.tar.gz"
 
 print_status "ARM64 image created: $OUTPUT_DIR/$IMAGE_NAME"
