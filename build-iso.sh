@@ -77,10 +77,36 @@ fi
 if [[ $? -eq 0 ]]; then
     print_status "ISO build completed successfully!"
     print_status "Output directory: $OUTPUT_DIR"
-    ls -la "$OUTPUT_DIR"/*.iso 2>/dev/null || print_warning "No ISO files found in output directory"
+    
+    # Show detailed file information
+    if ls "$OUTPUT_DIR"/*.iso 1> /dev/null 2>&1; then
+        echo ""
+        print_status "Built ISO files:"
+        for iso in "$OUTPUT_DIR"/*.iso; do
+            size_mb=$(du -m "$iso" | cut -f1)
+            size_human=$(du -h "$iso" | cut -f1)
+            print_status "$(basename "$iso"): ${size_human} (${size_mb} MB)"
+        done
+        echo ""
+        
+        # Warn if ISO is still too large
+        for iso in "$OUTPUT_DIR"/*.iso; do
+            size_mb=$(du -m "$iso" | cut -f1)
+            if [[ $size_mb -gt 1000 ]]; then
+                print_warning "ISO $(basename "$iso") is ${size_mb}MB - still quite large for a network installer"
+                print_warning "Consider removing more packages from archiso/packages.x86_64"
+            elif [[ $size_mb -gt 500 ]]; then
+                print_warning "ISO $(basename "$iso") is ${size_mb}MB - consider removing more packages if possible"
+            else
+                print_status "ISO $(basename "$iso") size looks good for a network installer!"
+            fi
+        done
+    else
+        print_warning "No ISO files found in output directory"
+    fi
 else
     print_error "ISO build failed!"
     exit 1
 fi
 
-print_status "Build process completed for $ARCH architecture."# Test comment
+print_status "Build process completed for $ARCH architecture."

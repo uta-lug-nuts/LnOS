@@ -1,25 +1,30 @@
-arch-install-scripts
+# Minimal packages for network installer
+# Core system
 base
-btrfs-progs
-dhcpcd
-dosfstools
-efibootmgr
-gum
-grub
-iw
-linux-lts
-linux-firmware-whence
-networkmanager
-openssh
-parted
-sudo
-vi
-vim
-wget
-curl
+linux
+linux-firmware
+
+# Boot and hardware
 syslinux
-memtest86+
-edk2-shell
-memtest86+-efi
+efibootmgr
 intel-ucode
 amd-ucode
+
+# Network essentials
+networkmanager
+dhcpcd
+iw
+wget
+curl
+
+# Installation tools
+arch-install-scripts
+parted
+
+# Essential utilities
+sudo
+nano
+openssh
+
+# Your installer requirements
+gum
