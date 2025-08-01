@@ -23,26 +23,42 @@ cp -r /usr/share/lnos/pacman_packages /root/LnOS/scripts/
 # Make installer executable
 chmod +x /root/LnOS/scripts/LnOS-installer.sh
 
-# Create a welcome message
+# Create a welcome message and auto-start installer option
 cat > /root/.bashrc << 'EOF'
 #!/bin/bash
-
-echo "=========================================="
-echo "      Welcome to LnOS Live Environment"
-echo "=========================================="
-echo ""
-echo "To start the installation, run:"
-echo "  cd /root/LnOS/scripts && ./LnOS-installer.sh --target=x86_64"
-echo ""
-echo "For help, run:"
-echo "  ./LnOS-installer.sh --help"
-echo ""
-echo "Network should be automatically configured."
-echo "=========================================="
-echo ""
 
 # Source the original bashrc if it exists
 if [ -f /etc/bash.bashrc ]; then
     source /etc/bash.bashrc
+fi
+
+# Only show welcome on first login (tty1)
+if [[ $(tty) == "/dev/tty1" ]]; then
+    echo "=========================================="
+    echo "      Welcome to LnOS Live Environment"
+    echo "=========================================="
+    echo ""
+    echo "Network should be automatically configured."
+    echo ""
+    echo "Options:"
+    echo "  1. Start LnOS installer automatically"
+    echo "  2. Drop to shell"
+    echo ""
+    
+    # Ask user if they want to start installer automatically
+    read -p "Start installer now? [Y/n]: " -n 1 -r
+    echo ""
+    
+    if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+        echo "Starting LnOS installer..."
+        cd /root/LnOS/scripts
+        ./LnOS-installer.sh --target=x86_64
+    else
+        echo "Dropped to shell. To start installer later, run:"
+        echo "  cd /root/LnOS/scripts && ./LnOS-installer.sh --target=x86_64"
+        echo ""
+        echo "For help: ./LnOS-installer.sh --help"
+        echo "=========================================="
+    fi
 fi
 EOF
