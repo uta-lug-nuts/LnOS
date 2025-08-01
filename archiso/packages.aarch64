@@ -1,19 +1,24 @@
-arch-install-scripts
+# Minimal packages for ARM64 network installer
+# Core system
 base
-base-devel
-btrfs-progs
-dhcpcd
-dosfstools
-git
-gum
-iw
 linux-aarch64
 linux-firmware
+
+# Network essentials
 networkmanager
-openssh
-parted
-sudo
-vi
-vim
+dhcpcd
+iw
 wget
 curl
+
+# Installation tools
+arch-install-scripts
+parted
+
+# Essential utilities
+sudo
+nano
+openssh
+
+# Your installer requirements
+gum
