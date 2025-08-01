@@ -52,10 +52,32 @@ if [[ $(tty) == "/dev/tty1" ]]; then
     if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
         echo "Starting LnOS installer..."
         cd /root/LnOS/scripts
-        ./LnOS-installer.sh --target=x86_64
+        
+        # Auto-detect architecture
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "x86_64" ]]; then
+            TARGET="x86_64"
+        elif [[ "$ARCH" == "aarch64" ]]; then
+            TARGET="aarch64"
+        else
+            TARGET="x86_64"  # fallback
+        fi
+        
+        echo "Detected architecture: $ARCH (target: $TARGET)"
+        ./LnOS-installer.sh --target=$TARGET
     else
+        # Auto-detect architecture for manual instructions too
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "x86_64" ]]; then
+            TARGET="x86_64"
+        elif [[ "$ARCH" == "aarch64" ]]; then
+            TARGET="aarch64" 
+        else
+            TARGET="x86_64"  # fallback
+        fi
+        
         echo "Dropped to shell. To start installer later, run:"
-        echo "  cd /root/LnOS/scripts && ./LnOS-installer.sh --target=x86_64"
+        echo "  cd /root/LnOS/scripts && ./LnOS-installer.sh --target=$TARGET"
         echo ""
         echo "For help: ./LnOS-installer.sh --help"
         echo "=========================================="
