@@ -129,10 +129,10 @@ jobs:
           name: lnos-x86_64-iso
           path: ./isos/
 
-      - name: Download aarch64 ISO
+      - name: Download aarch64 SD card image
         uses: actions/download-artifact@v4
         with:
-          name: lnos-aarch64-iso
+          name: lnos-aarch64-sdcard
           path: ./isos/
 
       - name: Generate release tag
@@ -147,9 +147,9 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: LnOS Release ${{ steps.tag.outputs.tag }}
           body: |
-            ## LnOS Custom Arch Linux ISO
+            ## LnOS Custom Arch Linux Distribution
             
-            This release contains custom minimal Arch Linux ISOs with the LnOS installer.
+            This release contains custom minimal Arch Linux images with the LnOS installer.
             
             ### Features:
             - Minimal Arch Linux base system
@@ -158,17 +158,29 @@ jobs:
             - CSE and Custom installation profiles
             - Automated partitioning and installation
             
+            ### Files Included:
+            - **x86_64 ISO**: For VMs, Intel/AMD computers, and USB boot
+            - **ARM64 IMG**: For Raspberry Pi 4 and ARM64 devices (SD card image)
+            
             ### Usage:
-            1. Download the appropriate ISO for your architecture
-            2. Write to USB stick: `dd if=lnos-*.iso of=/dev/sdX bs=4M status=progress`
+            
+            #### x86_64 ISO (VMs and x86_64 systems):
+            1. Download `lnos-*-x86_64.iso`
+            2. Write to USB: `dd if=lnos-*.iso of=/dev/sdX bs=4M status=progress`
             3. Boot from USB
             4. Run installer: `cd /root/LnOS/scripts && ./LnOS-installer.sh --target=x86_64`
             
+            #### ARM64 IMG (Raspberry Pi 4):
+            1. Download `lnos-arm64-*.img`
+            2. Write to SD card: `dd if=lnos-arm64-*.img of=/dev/sdX bs=4M status=progress`
+            3. Boot Raspberry Pi from SD card
+            4. Run installer: `cd /root/LnOS/scripts && ./LnOS-installer.sh --target=aarch64`
+            
             ### Checksums:
             ```
-            $(cd isos && sha256sum *.iso)
+            $(cd isos && sha256sum * 2>/dev/null || echo "Checksums will be calculated...")
             ```
-          files: ./isos/*.iso
+          files: ./isos/*
           draft: false
           prerelease: false
         env:
