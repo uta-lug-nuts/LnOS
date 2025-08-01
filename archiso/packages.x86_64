@@ -47,5 +47,13 @@ rsync
 strace
 lsof
 
+# Loop device and archiso support
+mkinitcpio-archiso
+squashfs-tools
+
+# Additional kernel support for VirtualBox
+mkinitcpio
+mtools
+
 # Your installer requirements
 gum
