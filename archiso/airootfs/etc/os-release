@@ -1,0 +1,10 @@
+NAME="LnOS"
+PRETTY_NAME="LnOS (Arch Linux)"
+ID=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://github.com/uta-lug-nuts/LnOS"
+DOCUMENTATION_URL="https://github.com/uta-lug-nuts/LnOS"
+SUPPORT_URL="https://github.com/uta-lug-nuts/LnOS/issues"
+BUG_REPORT_URL="https://github.com/uta-lug-nuts/LnOS/issues"
+LOGO=archlinux-logo

@@ -18,4 +18,8 @@ airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '22' '-b' '1M'
 file_permissions=(
   ["/root"]="0:0:750"
   ["/usr/local/bin/LnOS-installer.sh"]="0:0:755"
+  ["/.discinfo"]="0:0:644"
+  ["/etc/os-release"]="0:0:644"
+  ["/autorun.inf"]="0:0:644"
+  ["/README.txt"]="0:0:644"
 )

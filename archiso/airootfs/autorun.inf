@@ -1,0 +1,9 @@
+[autorun]
+open=README.txt
+icon=lnos.ico
+label=LnOS Install CD
+
+[Content]
+MusicFiles=false
+PictureFiles=false
+VideoFiles=false
