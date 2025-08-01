@@ -7,8 +7,6 @@ linux-firmware
 # Boot and hardware
 syslinux
 efibootmgr
-intel-ucode
-amd-ucode
 
 # Network essentials
 networkmanager
