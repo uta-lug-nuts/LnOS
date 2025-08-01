@@ -142,9 +142,10 @@ echo ""
 echo "For help, run:"
 echo "  ./LnOS-installer.sh --help"
 echo ""
-echo "Network configuration may be needed:"
-echo "  systemctl enable NetworkManager"
-echo "  systemctl start NetworkManager"
+echo "Network configuration:"
+echo "  systemctl enable systemd-networkd"
+echo "  systemctl start systemd-networkd"
+echo "  echo '[Match]\nName=*\n[Network]\nDHCP=yes' > /etc/systemd/network/20-wired.network"
 echo "=========================================="
 echo ""
 
@@ -154,9 +155,14 @@ if [ -f /etc/bash.bashrc ]; then
 fi
 EOF
 
-# Enable NetworkManager
+# Enable NetworkManager (if available)
 print_status "Configuring services..."
-chroot "$MOUNT_DIR" systemctl enable NetworkManager
+if chroot "$MOUNT_DIR" systemctl --quiet is-enabled NetworkManager 2>/dev/null; then
+    chroot "$MOUNT_DIR" systemctl enable NetworkManager
+else
+    print_warning "NetworkManager not found, skipping service enablement"
+    print_status "User will need to configure networking manually after boot"
+fi
 
 # Clean up
 print_status "Cleaning up..."
