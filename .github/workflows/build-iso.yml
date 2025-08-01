@@ -148,12 +148,12 @@ jobs:
           done
           
           # Compress IMG files with xz
-          for img in *.img; do
-            if [ -f "$img" ]; then
-              echo "Compressing $img..."
-              xz -9 -T 0 "$img"
-            fi
-          done
+          #for img in *.img; do
+          #  if [ -f "$img" ]; then
+          #    echo "Compressing $img..."
+          #    xz -9 -T 0 "$img"
+          #  fi
+          #done
           
           # List compressed files
           ls -lh
