@@ -1,12 +1,29 @@
-# Minimal packages for network installer
+# Network installer with VirtualBox compatibility
 # Core system
 base
 linux
 linux-firmware
 
+# Filesystem support (critical for VirtualBox)
+btrfs-progs
+dosfstools
+e2fsprogs
+ntfs-3g
+xfsprogs
+
+# Hardware and virtualization support
+virtualbox-guest-utils-nox
+open-vm-tools
+
 # Boot and hardware
 syslinux
 efibootmgr
+grub
+
+# Block device utilities
+util-linux
+lvm2
+mdadm
 
 # Network essentials
 networkmanager
@@ -18,11 +35,17 @@ curl
 # Installation tools
 arch-install-scripts
 parted
+gdisk
 
 # Essential utilities
 sudo
 nano
 openssh
+rsync
+
+# Debugging tools
+strace
+lsof
 
 # Your installer requirements
 gum
