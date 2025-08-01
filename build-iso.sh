@@ -110,3 +110,4 @@ else
 fi
 
 print_status "Build process completed for $ARCH architecture."
+print_status "GRUB debug mode and boot fixes applied."
