@@ -62,7 +62,7 @@ LnOS/
 
 ### 1. Write ISO to USB
 ```bash
-# Replace /dev/sdX with your USB device
+# Replace /dev/sdX with your USB device. Be VERY CAREFUL /dex/sdX is the correct device.
 sudo dd if=out/lnos-*.iso of=/dev/sdX bs=4M status=progress sync
 ```
 
@@ -155,7 +155,6 @@ Add scripts to `archiso/airootfs/usr/local/bin/` and they'll be available in the
 
 - **x86_64**: Full support, tested
 - **aarch64**: Basic support, work in progress
-- **i686**: Not supported
 
 ## License
 
