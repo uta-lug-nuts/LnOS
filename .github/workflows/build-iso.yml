@@ -140,20 +140,20 @@ jobs:
           cd ./isos/
           
           # Compress ISO files with xz (better compression than gzip)
-          for iso in *.iso; do
-            if [ -f "$iso" ]; then
-              echo "Compressing $iso..."
-              xz -9 -T 0 "$iso"
-            fi
-          done
+          #for iso in *.iso; do
+          #  if [ -f "$iso" ]; then
+          #    echo "Compressing $iso..."
+          #    xz -9 -T 0 "$iso"
+          #  fi
+          #done
           
           # Compress IMG files with xz
-          for img in *.img; do
-            if [ -f "$img" ]; then
-              echo "Compressing $img..."
-              xz -9 -T 0 "$img"
-            fi
-          done
+          #for img in *.img; do
+          #  if [ -f "$img" ]; then
+          #    echo "Compressing $img..."
+          #    xz -9 -T 0 "$img"
+          #  fi
+          #done
           
           # List compressed files
           ls -lh
