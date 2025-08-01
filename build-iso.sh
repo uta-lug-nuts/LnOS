@@ -83,4 +83,4 @@ else
     exit 1
 fi
 
-print_status "Build process completed for $ARCH architecture."
+print_status "Build process completed for $ARCH architecture."# Test comment
