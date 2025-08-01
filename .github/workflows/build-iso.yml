@@ -31,29 +31,36 @@ jobs:
   build-x86_64:
     if: ${{ github.event.inputs.architecture == 'x86_64' || github.event.inputs.architecture == 'both' || github.event.inputs.architecture == '' }}
     runs-on: ubuntu-latest
-    container:
-      image: archlinux:latest
     
     steps:
-      - name: Install base packages
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel git archiso
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare build environment
+      - name: Build x86_64 ISO in privileged container
         run: |
-          # Ensure we have the necessary permissions
-          chmod +x build-iso.sh
-          chmod +x archiso/airootfs/root/customize_airootfs.sh
-
-      - name: Build x86_64 ISO
-        run: |
-          # Install GRUB which is required for UEFI boot validation
-          pacman -S --noconfirm grub
-          ./build-iso.sh x86_64
+          # Use Docker with full privileges and system mounts
+          docker run --rm --privileged \
+            --cap-add=ALL \
+            --security-opt=apparmor:unconfined \
+            --security-opt=seccomp=unconfined \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            -v /dev:/dev \
+            -v /proc:/proc \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            archlinux:latest \
+            bash -c "
+              # Install required packages
+              pacman -Syu --noconfirm
+              pacman -S --noconfirm base-devel git archiso grub
+              
+              # Make scripts executable
+              chmod +x build-iso.sh
+              chmod +x archiso/airootfs/root/customize_airootfs.sh
+              
+              # Build the ISO
+              ./build-iso.sh x86_64
+            "
 
       - name: Upload x86_64 ISO artifact
         uses: actions/upload-artifact@v4
