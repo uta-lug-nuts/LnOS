@@ -1,0 +1,32 @@
+{
+    "name": "LnOS Development Environment",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+    "privileged": true,
+    "runArgs": [
+        "--privileged",
+        "--cap-add=SYS_ADMIN",
+        "--cap-add=MKNOD",
+        "--security-opt=apparmor:unconfined"
+    ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.vscode-json",
+                "redhat.vscode-yaml",
+                "timonwong.shellcheck",
+                "foxundermoon.shell-format"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "files.eol": "\n"
+            }
+        }
+    },
+    "postCreateCommand": "echo 'LnOS Development Environment Ready!'",
+    "remoteUser": "root",
+    "workspaceFolder": "/workspace"
+}

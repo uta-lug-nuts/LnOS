@@ -1,0 +1,159 @@
+name: Build LnOS ISO
+
+on:
+  push:
+    branches: [ main, ISO ]
+    paths:
+      - 'archiso/**'
+      - 'scripts/**'
+      - '.github/workflows/build-iso.yml'
+      - 'build-iso.sh'
+  pull_request:
+    branches: [ main, ISO ]
+    paths:
+      - 'archiso/**'
+      - 'scripts/**'
+      - '.github/workflows/build-iso.yml'
+      - 'build-iso.sh'
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: 'Target architecture'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'x86_64'
+          - 'aarch64'
+          - 'both'
+
+jobs:
+  build-x86_64:
+    if: ${{ github.event.inputs.architecture == 'x86_64' || github.event.inputs.architecture == 'both' || github.event.inputs.architecture == '' }}
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    
+    steps:
+      - name: Install base packages
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel git archiso
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare build environment
+        run: |
+          # Ensure we have the necessary permissions
+          chmod +x build-iso.sh
+          chmod +x archiso/airootfs/root/customize_airootfs.sh
+
+      - name: Build x86_64 ISO
+        run: |
+          ./build-iso.sh x86_64
+
+      - name: Upload x86_64 ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lnos-x86_64-iso
+          path: out/*.iso
+          retention-days: 30
+
+  build-aarch64:
+    if: ${{ github.event.inputs.architecture == 'aarch64' || github.event.inputs.architecture == 'both' || github.event.inputs.architecture == '' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build aarch64 ISO in Docker
+        run: |
+          docker run --rm --privileged \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            --platform linux/arm64 \
+            archlinux:latest \
+            bash -c "
+              pacman -Syu --noconfirm
+              pacman -S --noconfirm base-devel git archiso
+              chmod +x build-iso.sh
+              chmod +x archiso/airootfs/root/customize_airootfs.sh
+              ./build-iso.sh aarch64
+            "
+
+      - name: Upload aarch64 ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lnos-aarch64-iso
+          path: out/*.iso
+          retention-days: 30
+
+  create-release:
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ISO') && github.event_name == 'push'
+    needs: [build-x86_64, build-aarch64]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download x86_64 ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: lnos-x86_64-iso
+          path: ./isos/
+
+      - name: Download aarch64 ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: lnos-aarch64-iso
+          path: ./isos/
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: LnOS Release ${{ steps.tag.outputs.tag }}
+          body: |
+            ## LnOS Custom Arch Linux ISO
+            
+            This release contains custom minimal Arch Linux ISOs with the LnOS installer.
+            
+            ### Features:
+            - Minimal Arch Linux base system
+            - Interactive package selection
+            - Desktop environment choices (GNOME, KDE, Hyprland, DWM, TTY)
+            - CSE and Custom installation profiles
+            - Automated partitioning and installation
+            
+            ### Usage:
+            1. Download the appropriate ISO for your architecture
+            2. Write to USB stick: `dd if=lnos-*.iso of=/dev/sdX bs=4M status=progress`
+            3. Boot from USB
+            4. Run installer: `cd /root/LnOS/scripts && ./LnOS-installer.sh --target=x86_64`
+            
+            ### Checksums:
+            ```
+            $(cd isos && sha256sum *.iso)
+            ```
+          files: ./isos/*.iso
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
