@@ -8,6 +8,7 @@ on:
       - 'scripts/**'
       - '.github/workflows/build-iso.yml'
       - 'build-iso.sh'
+      - 'build-arm-image.sh'
   pull_request:
     branches: [ main, ISO ]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'scripts/**'
       - '.github/workflows/build-iso.yml'
       - 'build-iso.sh'
+      - 'build-arm-image.sh'
   workflow_dispatch:
     inputs:
       architecture:
