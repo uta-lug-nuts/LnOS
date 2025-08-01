@@ -97,7 +97,7 @@ jobs:
             bash -c "
               # Install required tools
               pacman -Syu --noconfirm
-              pacman -S --noconfirm base-devel git wget parted dosfstools e2fsprogs
+              pacman -S --noconfirm base-devel git wget parted dosfstools e2fsprogs multipath-tools
               
               chmod +x build-arm-image.sh
               
