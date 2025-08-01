@@ -85,36 +85,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build aarch64 ISO using cross-compilation
+      - name: Build aarch64 SD card image
         run: |
-          # Use x86_64 container with QEMU for cross-compilation
+          # Build ARM64 SD card image instead of ISO
           docker run --rm --privileged \
+            --cap-add=ALL \
+            --security-opt=apparmor:unconfined \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             archlinux:latest \
             bash -c "
-              # Install cross-compilation tools
+              # Install required tools
               pacman -Syu --noconfirm
-              pacman -S --noconfirm base-devel git archiso qemu-user-static
+              pacman -S --noconfirm base-devel git wget parted dosfstools e2fsprogs
               
-              # Enable binfmt for ARM64 emulation
-              echo ':aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:CF' > /proc/sys/fs/binfmt_misc/register || true
+              chmod +x build-arm-image.sh
               
-              chmod +x build-iso.sh
-              chmod +x archiso/airootfs/root/customize_airootfs.sh
-              
-              # Note: aarch64 ISO building is experimental
-              echo 'aarch64 ISO building is currently experimental and may not complete successfully'
-              echo 'Creating placeholder for aarch64 build'
-              mkdir -p out
-              echo 'aarch64 build placeholder - use x86_64 ISO for now' > out/lnos-aarch64-placeholder.txt
+              # Build ARM64 SD card image for Raspberry Pi 4
+              ./build-arm-image.sh rpi4
             "
 
-      - name: Upload aarch64 artifact
+      - name: Upload aarch64 SD card image
         uses: actions/upload-artifact@v4
         with:
-          name: lnos-aarch64-iso
-          path: out/*
+          name: lnos-aarch64-sdcard
+          path: out/*.img
           retention-days: 30
 
   create-release:
