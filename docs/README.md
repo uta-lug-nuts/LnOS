@@ -1,6 +1,15 @@
 <center><img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Tux_with_toolbox.png?raw=true" width=50% alt="tux with toolbox"></center>
 
-# LnOS a Customized Arch Distro tailored to UTA Students
+# 🔐 LnOS a Customized Arch Distro tailored to UTA Students
+
+![GPG Signed](https://img.shields.io/badge/GPG-Signed-brightgreen?style=for-the-badge&logo=gnupg)
+![Security Verified](https://img.shields.io/badge/Security-Verified-blue?style=for-the-badge&logo=shield)
+![Integrity Guaranteed](https://img.shields.io/badge/Integrity-Guaranteed-orange?style=for-the-badge&logo=checkmarx)
+![Build Status](https://img.shields.io/github/actions/workflow/status/bakkertj/LnOS/build-iso.yml?style=for-the-badge&logo=github)
+![Latest Release](https://img.shields.io/github/v/release/bakkertj/LnOS?style=for-the-badge&logo=github)
+
+**🔒 All releases are cryptographically signed for authenticity and integrity**
+
 "A UTA flavored distro with all the applications and tools the different engineering majors use" - Professor Bakker
 
 ## Overview
@@ -49,11 +58,25 @@ Click here to see guide on testing: [Testing](testing.md)
 Pre-built LnOS ISOs are available with the installer included.
 
 #### Option 1: Download Pre-built ISO
+
+> ⚠️ **SECURITY NOTICE**: Always verify file signatures before use! All LnOS releases are digitally signed.
+
 1. Download the latest release from [GitHub Releases](https://github.com/uta-lug-nuts/LnOS/releases)
    - `lnos-x86_64-*.iso` for Intel/AMD 64-bit systems
    - `lnos-aarch64-*.iso` for ARM 64-bit systems (Raspberry Pi 4+)
+   - `*.asc` signature files for verification
 
-2. Create bootable USB:
+2. **Verify digital signature** (recommended):
+   ```bash
+   # Quick verification (auto-imports key)
+   curl -fsSL https://raw.githubusercontent.com/bakkertj/LnOS/main/scripts/verify-signature.sh | bash -s -- lnos-*.iso
+   
+   # Manual verification
+   curl -fsSL https://raw.githubusercontent.com/bakkertj/LnOS/main/keys/lnos-public-key.asc | gpg --import
+   gpg --verify lnos-*.iso.asc lnos-*.iso
+   ```
+
+3. Create bootable USB:
    ```bash
    # Linux/macOS
    sudo dd if=lnos-x86_64-*.iso of=/dev/sdX bs=4M status=progress
@@ -163,6 +186,23 @@ More tools will be added based on student feedback.
 [GUM](https://github.com/charmbracelet/gum?tab=readme-ov-file)
 * this has seriously been amazing
 
+
+## 🛡️ Security & Digital Signatures
+
+All LnOS releases are digitally signed with GPG to ensure authenticity and integrity.
+
+**GPG Key Information:**
+- **Key ID**: `9486759312876AD7`
+- **Fingerprint**: `FF3B 2203 9FA1 CBC0 72E5 8967 9486 7593 1287 6AD7`
+- **Owner**: LnOS Development Team
+
+**Why verify signatures?**
+- Ensures files haven't been corrupted during download
+- Protects against malicious file tampering
+- Confirms files are from the official LnOS team
+- Prevents man-in-the-middle attacks
+
+**Public Key Location**: [keys/lnos-public-key.asc](https://github.com/bakkertj/LnOS/blob/main/keys/lnos-public-key.asc)
 
 ## Known Issues
 
