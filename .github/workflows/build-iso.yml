@@ -1,0 +1,226 @@
+name: Build LnOS ISO
+
+on:
+  push:
+    branches: [ main, ISO ]
+    paths:
+      - 'archiso/**'
+      - 'scripts/**'
+      - '.github/workflows/build-iso.yml'
+      - 'build-iso.sh'
+      - 'build-arm-image.sh'
+  pull_request:
+    branches: [ main, ISO ]
+    paths:
+      - 'archiso/**'
+      - 'scripts/**'
+      - '.github/workflows/build-iso.yml'
+      - 'build-iso.sh'
+      - 'build-arm-image.sh'
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: 'Target architecture'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'x86_64'
+          - 'aarch64'
+          - 'both'
+
+jobs:
+  build-x86_64:
+    if: ${{ github.event.inputs.architecture == 'x86_64' || github.event.inputs.architecture == 'both' || github.event.inputs.architecture == '' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build x86_64 ISO in privileged container
+        run: |
+          # Use Docker with full privileges and system mounts
+          docker run --rm --privileged \
+            --cap-add=ALL \
+            --security-opt=apparmor:unconfined \
+            --security-opt=seccomp=unconfined \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            -v /dev:/dev \
+            -v /proc:/proc \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            archlinux:latest \
+            bash -c "
+              # Install required packages
+              pacman -Syu --noconfirm
+              pacman -S --noconfirm base-devel git archiso grub
+              
+              # Make scripts executable
+              chmod +x build-iso.sh
+              chmod +x archiso/airootfs/root/customize_airootfs.sh
+              
+              # Build the ISO
+              ./build-iso.sh x86_64
+            "
+
+      - name: Upload x86_64 ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lnos-x86_64-iso
+          path: out/*.iso
+          retention-days: 30
+
+  build-aarch64:
+    if: ${{ github.event.inputs.architecture == 'aarch64' || github.event.inputs.architecture == 'both' || github.event.inputs.architecture == '' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build aarch64 SD card image
+        run: |
+          # Build ARM64 SD card image instead of ISO
+          docker run --rm --privileged \
+            --cap-add=ALL \
+            --security-opt=apparmor:unconfined \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            archlinux:latest \
+            bash -c "
+              # Install required tools
+              pacman -Syu --noconfirm
+              pacman -S --noconfirm base-devel git wget parted dosfstools e2fsprogs multipath-tools
+              
+              chmod +x build-arm-image.sh
+              
+              # Build ARM64 SD card image for Raspberry Pi 4
+              ./build-arm-image.sh rpi4
+            "
+
+      - name: Upload aarch64 SD card image
+        uses: actions/upload-artifact@v4
+        with:
+          name: lnos-aarch64-sdcard
+          path: out/*.img
+          retention-days: 30
+
+  create-release:
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ISO') && github.event_name == 'push'
+    needs: [build-x86_64, build-aarch64]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download x86_64 ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: lnos-x86_64-iso
+          path: ./isos/
+
+      - name: Download aarch64 SD card image
+        uses: actions/download-artifact@v4
+        with:
+          name: lnos-aarch64-sdcard
+          path: ./isos/
+
+      - name: Check file sizes for compression decision
+        run: |
+          cd ./isos/
+          
+          echo "=== CHECKING FILE SIZES ==="
+          
+          # Check ISO files
+          for iso in *.iso; do
+            if [ -f "$iso" ]; then
+              size_mb=$(du -m "$iso" | cut -f1)
+              size_human=$(du -h "$iso" | cut -f1)
+              echo "ISO: $(basename "$iso")"
+              echo "Size: ${size_human} (${size_mb} MB)"
+              
+              if [[ $size_mb -lt 1000 ]]; then
+                echo "✅ Under 1GB - no compression needed!"
+                echo "Keeping $iso uncompressed"
+              else
+                echo "❌ Over 1GB - compressing with XZ"
+                echo "Compressing $iso..."
+                xz -9 -T 0 "$iso"
+                echo "Compressed $(basename "$iso").xz"
+              fi
+              echo ""
+            fi
+          done
+          
+          # Check IMG files  
+          for img in *.img; do
+            if [ -f "$img" ]; then
+              size_mb=$(du -m "$img" | cut -f1)
+              size_human=$(du -h "$img" | cut -f1)
+              echo "IMG: $(basename "$img")"
+              echo "Size: ${size_human} (${size_mb} MB)"
+              
+              if [[ $size_mb -lt 1000 ]]; then
+                echo "✅ Under 1GB - no compression needed!"
+                echo "Keeping $img uncompressed"
+              else
+                echo "❌ Over 1GB - compressing with XZ"
+                echo "Compressing $img..."
+                xz -9 -T 0 "$img"
+                echo "Compressed $(basename "$img").xz"
+              fi
+              echo ""
+            fi
+          done
+          
+          echo "=== FINAL FILES ==="
+          ls -lh
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: LnOS Release ${{ steps.tag.outputs.tag }}
+          body: |
+            ## LnOS Custom Arch Linux Distribution
+            
+            This release contains custom minimal Arch Linux images with the LnOS installer.
+            
+            ### Features:
+            - Minimal Arch Linux base system
+            - Interactive package selection
+            - Desktop environment choices (GNOME, KDE, Hyprland, DWM, TTY)
+            - CSE and Custom installation profiles
+            - Automated partitioning and installation
+            
+            ### Files Included:
+            - **x86_64 ISO.XZ**: Compressed ISO for VMs, Intel/AMD computers, and USB boot
+            - **ARM64 IMG.XZ**: Compressed SD card image for Raspberry Pi 4 and ARM64 devices
+            
+            **Note**: Large files (>1GB) are compressed with XZ to stay under GitHub's 2GB limit. Files under 1GB are uncompressed and ready to use.
+            
+            ### Checksums:
+            ```
+            $(cd isos && sha256sum *.xz 2>/dev/null || echo "Checksums will be calculated...")
+            ```
+          files: ./isos/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

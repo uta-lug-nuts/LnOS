@@ -44,44 +44,100 @@ Click here to see guide on testing: [Testing](testing.md)
 
 ## Installation Instructions
 
->**NOTE:**  
->This is highly experimental and not recommend to try on your dedicated machine yet since it hasn't been thoughrougly tested.
->please instead follow a real install guide from: [[https://wiki.archlinux.org/title/Installation_guide]] 
+### Custom ISO Installation
 
-1. Download Arch Linux ISO:
+Pre-built LnOS ISOs are available with the installer included.
 
-Get the latest ISO from [[https://archlinux.org/download/]]
+#### Option 1: Download Pre-built ISO
+1. Download the latest release from [GitHub Releases](https://github.com/uta-lug-nuts/LnOS/releases)
+   - `lnos-x86_64-*.iso` for Intel/AMD 64-bit systems
+   - `lnos-aarch64-*.iso` for ARM 64-bit systems (Raspberry Pi 4+)
 
-2. Create Bootable Media:
+2. Create bootable USB:
+   ```bash
+   # Linux/macOS
+   sudo dd if=lnos-x86_64-*.iso of=/dev/sdX bs=4M status=progress
+   
+   # Windows: Use Rufus or Balena Etcher
+   ```
 
-Use tools like [rufus](https://rufus.ie/en/) or [Balena Etcher](https://www.balena.io/etcher) to write the ISO to a USB drive or SD card.
+3. Boot and install:
+   - Boot from USB (automatic login as root)
+   - Run the installer: `cd /root/LnOS/scripts && ./LnOS-installer.sh --target=x86_64`
+   - Follow the interactive prompts to select packages and desktop environment
 
+#### Option 2: Build Custom ISO
 
-3. Boot and Install Base System:
+##### Using VS Code Dev Container
+1. Install VS Code with "Dev Containers" extension
+2. Clone and open: 
+   ```bash
+   git clone https://github.com/uta-lug-nuts/LnOS.git
+   cd LnOS
+   code .
+   ```
+3. Open in container: `Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
+4. Build ISO: 
+   ```bash
+   ./build-iso.sh x86_64     # Build x86_64 ISO
+   ./build-iso.sh aarch64    # Build ARM64 ISO
+   ```
 
-clone our repo:
+##### Using Local Arch Linux
+```bash
+# Install archiso
+sudo pacman -S archiso
+
+# Clone and build
+git clone https://github.com/uta-lug-nuts/LnOS.git
+cd LnOS
+./build-iso.sh x86_64
+```
+
+##### Using Docker
 ```bash
 git clone https://github.com/uta-lug-nuts/LnOS.git
+cd LnOS
+
+# Build in Arch container
+docker run --rm --privileged \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  archlinux:latest \
+  bash -c "
+    pacman -Syu --noconfirm
+    pacman -S --noconfirm archiso
+    ./build-iso.sh x86_64
+  "
 ```
 
-run and choose the target based on cpu architecture:
-```bash
-./scripts/LnOS-installer.sh --target=[x86_64 | arm]
-```
+### Development Environment
 
-4. Add CS Tools:
+To contribute to LnOS, use the VS Code dev container:
 
-After booting into the base system, clone our repo again:
-```bash
-git clone https://github.com/uta-lug-nuts/LnOS.git
-```
+1. Install VS Code with "Dev Containers" extension
+2. Clone repository: `git clone https://github.com/uta-lug-nuts/LnOS.git`
+3. Open in VS Code: `code LnOS`
+4. Reopen in container: `Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
 
-run and follow the instructions in:
-```bash
-./scripts/Environment-setup.sh
-```
+The dev container includes:
+- Arch Linux environment
+- Pre-installed archiso and build tools
+- Build aliases: `build-x86`, `build-arm`, `clean-build`
+- Shell script linting and formatting
+- Cross-platform compatibility (Windows, macOS, Linux)
 
-Done! 
+### Manual Installation
+
+1. Download Arch Linux ISO from [archlinux.org/download](https://archlinux.org/download/)
+
+2. Create bootable media using [Rufus](https://rufus.ie/en/) or [Balena Etcher](https://www.balena.io/etcher)
+
+3. Boot and install:
+   ```bash
+   git clone https://github.com/uta-lug-nuts/LnOS.git
+   ./LnOS/scripts/LnOS-installer.sh --target=x86_64
+   ``` 
 
 
 
@@ -111,9 +167,9 @@ More tools will be added based on student feedback.
 ## Known Issues
 
 * Not fully reliable yet (still not even a 1.0.0 release)
-* No testing done for ARM.
-* no iso specific to the repo 
-* No GH Action pipeline test 
+* ARM64 support is work in progress (basic support implemented)
+* Limited testing on various hardware configurations
+* Some desktop environments may require additional configuration 
 
 
 ## Credits
