@@ -392,8 +392,8 @@ prepare_arm()
 
     # Partition the SD card
     parted "$DISK" mklabel msdos
-    parted "$DISK" mkpart primary fat32 1MiB 513MiB
-    parted "$DISK" mkpart primary btrfs 513MiB 100%
+    parted "$DISK" mkpart primary fat32 1MiB 257MiB
+    parted "$DISK" mkpart primary btrfs 257MiB 100%
 
     # Format partitions
     mkfs.fat -F32 "${DISK}p1"

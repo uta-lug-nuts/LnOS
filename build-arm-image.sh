@@ -38,9 +38,9 @@ print_status "Building LnOS ARM64 image for $DEVICE..."
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Create a 4GB image file
-print_status "Creating 4GB image file..."
-dd if=/dev/zero of="$OUTPUT_DIR/$IMAGE_NAME" bs=1M count=4096
+# Create a 1GB image file (will be expanded on first boot)
+print_status "Creating 1GB base image file..."
+dd if=/dev/zero of="$OUTPUT_DIR/$IMAGE_NAME" bs=1M count=1024
 
 # Set up loop device
 print_status "Setting up loop device..."
@@ -49,8 +49,8 @@ LOOP_DEV=$(losetup -f --show "$OUTPUT_DIR/$IMAGE_NAME")
 # Partition the image
 print_status "Partitioning image..."
 parted "$LOOP_DEV" mklabel msdos
-parted "$LOOP_DEV" mkpart primary fat32 1MiB 513MiB
-parted "$LOOP_DEV" mkpart primary ext4 513MiB 100%
+parted "$LOOP_DEV" mkpart primary fat32 1MiB 257MiB
+parted "$LOOP_DEV" mkpart primary ext4 257MiB 100%
 parted "$LOOP_DEV" set 1 boot on
 
 # Refresh partition table and wait for device nodes
@@ -126,7 +126,111 @@ print_status "Installing LnOS components..."
 mkdir -p "$MOUNT_DIR/root/LnOS/scripts"
 cp -r scripts/pacman_packages "$MOUNT_DIR/root/LnOS/scripts/"
 cp scripts/LnOS-installer.sh "$MOUNT_DIR/root/LnOS/scripts/"
+cp scripts/expand-rootfs.sh "$MOUNT_DIR/root/LnOS/scripts/"
 chmod +x "$MOUNT_DIR/root/LnOS/scripts/LnOS-installer.sh"
+chmod +x "$MOUNT_DIR/root/LnOS/scripts/expand-rootfs.sh"
+
+# Create first-boot expansion script
+print_status "Creating first-boot partition expansion script..."
+cat > "$MOUNT_DIR/usr/local/bin/expand-rootfs.sh" << 'EOF'
+#!/bin/bash
+
+# First-boot script to expand root partition to use entire SD card
+# This script runs once on first boot to resize the root partition
+
+EXPANSION_FLAG="/var/lib/lnos/rootfs-expanded"
+
+# Check if we've already expanded
+if [ -f "$EXPANSION_FLAG" ]; then
+    echo "Root filesystem already expanded, skipping."
+    exit 0
+fi
+
+echo "=========================================="
+echo "    Expanding root filesystem to use"
+echo "        entire SD card space..."
+echo "=========================================="
+
+# Get the root device
+ROOT_DEV=$(findmnt -n -o SOURCE /)
+if [ -z "$ROOT_DEV" ]; then
+    echo "ERROR: Could not determine root device"
+    exit 1
+fi
+
+# Get the partition number
+PART_NUM=$(echo "$ROOT_DEV" | grep -o '[0-9]*$')
+if [ -z "$PART_NUM" ]; then
+    echo "ERROR: Could not determine partition number"
+    exit 1
+fi
+
+# Get the base device (remove partition number)
+BASE_DEV=$(echo "$ROOT_DEV" | sed 's/[0-9]*$//')
+if [ -z "$BASE_DEV" ]; then
+    echo "ERROR: Could not determine base device"
+    exit 1
+fi
+
+echo "Root device: $ROOT_DEV"
+echo "Base device: $BASE_DEV"
+echo "Partition: $PART_NUM"
+
+# Expand the partition to use all available space
+echo "Expanding partition $PART_NUM to use entire device..."
+parted "$BASE_DEV" resizepart "$PART_NUM" 100%
+
+# Refresh partition table
+partprobe "$BASE_DEV"
+
+# Wait a moment for the kernel to recognize the change
+sleep 2
+
+# Expand the filesystem to use the new partition size
+echo "Expanding filesystem..."
+if command -v resize2fs >/dev/null 2>&1; then
+    resize2fs "$ROOT_DEV"
+else
+    echo "WARNING: resize2fs not available, filesystem expansion skipped"
+fi
+
+# Create flag file to prevent re-expansion
+mkdir -p "$(dirname "$EXPANSION_FLAG")"
+touch "$EXPANSION_FLAG"
+
+echo "=========================================="
+echo "    Root filesystem expansion complete!"
+echo "=========================================="
+
+# Remove this script from startup
+systemctl disable expand-rootfs.service 2>/dev/null || true
+rm -f /etc/systemd/system/expand-rootfs.service
+
+echo "Rebooting to ensure all changes take effect..."
+sleep 3
+reboot
+EOF
+
+chmod +x "$MOUNT_DIR/usr/local/bin/expand-rootfs.sh"
+
+# Create systemd service for first-boot expansion
+cat > "$MOUNT_DIR/etc/systemd/system/expand-rootfs.service" << 'EOF'
+[Unit]
+Description=Expand root filesystem on first boot
+After=local-fs.target
+Before=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/expand-rootfs.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable the expansion service
+chroot "$MOUNT_DIR" systemctl enable expand-rootfs.service
 
 # Create auto-start script
 cat > "$MOUNT_DIR/root/.bashrc" << 'EOF'
@@ -141,6 +245,9 @@ echo "  cd /root/LnOS/scripts && ./LnOS-installer.sh --target=aarch64"
 echo ""
 echo "For help, run:"
 echo "  ./LnOS-installer.sh --help"
+echo ""
+echo "To manually expand root filesystem (if needed):"
+echo "  sudo /root/LnOS/scripts/expand-rootfs.sh"
 echo ""
 echo "Network configuration:"
 echo "  systemctl enable systemd-networkd"
@@ -182,3 +289,4 @@ rm -f "/tmp/archlinuxarm.tar.gz"
 
 print_status "ARM64 image created: $OUTPUT_DIR/$IMAGE_NAME"
 print_status "To write to SD card: dd if=$OUTPUT_DIR/$IMAGE_NAME of=/dev/sdX bs=4M status=progress"
+print_status "Note: The 1GB image (256MB boot + 768MB root) will automatically expand to use the entire SD card space on first boot"

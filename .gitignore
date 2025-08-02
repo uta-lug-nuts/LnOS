@@ -80,4 +80,4 @@ private-keys/
 # Custom ISOs with different names
 lnos-*.iso
 archlinux-*.iso
-custom-*.iso 
+custom-*.iso docs/arm-image-expansion.md
