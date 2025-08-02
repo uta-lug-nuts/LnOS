@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# LnOS Release Signature Verification Script
+# LnOS Release GPG Signature Verification Script
 # Usage: ./verify-signature.sh <file> [signature_file]
 #
 
@@ -18,11 +18,11 @@ print_usage() {
     echo ""
     echo "Examples:"
     echo "  $0 lnos-2025.08.01-x86_64.iso"
-    echo "  $0 lnos-arm64-2025.08.01.img lnos-arm64-2025.08.01.img.sig"
+    echo "  $0 lnos-arm64-2025.08.01.img lnos-arm64-2025.08.01.img.asc"
     echo ""
     echo "This script will:"
-    echo "  1. Download the LnOS public key if needed"
-    echo "  2. Verify the digital signature"
+    echo "  1. Import the LnOS GPG public key if needed"
+    echo "  2. Verify the GPG signature"
     echo "  3. Display verification results"
 }
 
@@ -33,9 +33,9 @@ if [ $# -lt 1 ] || [ $# -gt 2 ]; then
 fi
 
 FILE="$1"
-SIG_FILE="${2:-${FILE}.sig}"
+SIG_FILE="${2:-${FILE}.asc}"
 
-echo -e "${BLUE}🔐 LnOS Release Signature Verification${NC}"
+echo -e "${BLUE}🔐 LnOS Release GPG Signature Verification${NC}"
 echo "========================================"
 echo ""
 
@@ -50,29 +50,32 @@ fi
 if [ ! -f "$SIG_FILE" ]; then
     echo -e "${RED}❌ Error: Signature file '$SIG_FILE' not found${NC}"
     echo "Please ensure the signature file is in the current directory"
-    echo "Signature files have the same name as the original file with .sig extension"
+    echo "Signature files have the same name as the original file with .asc extension"
     exit 1
 fi
 
-# Check for public key
-PUBLIC_KEY="lnos-public-key.pem"
-if [ ! -f "$PUBLIC_KEY" ]; then
-    echo -e "${YELLOW}📥 Public key not found. Downloading from GitHub...${NC}"
+# GPG key fingerprint for LnOS releases
+LNOS_KEY_FINGERPRINT="YOUR_KEY_FINGERPRINT_HERE"
+LNOS_KEY_ID="YOUR_KEY_ID_HERE"
+
+# Check if GPG key is imported
+if ! gpg --list-keys "$LNOS_KEY_ID" >/dev/null 2>&1; then
+    echo -e "${YELLOW}📥 LnOS GPG key not found. Importing from GitHub...${NC}"
     
-    # Download public key (you'll need to host this)
-    curl -fsSL "https://raw.githubusercontent.com/bakkertj/LnOS/main/keys/lnos-public-key.pem" -o "$PUBLIC_KEY" || {
-        echo -e "${RED}❌ Failed to download public key${NC}"
-        echo "Please manually download the public key from:"
-        echo "https://github.com/bakkertj/LnOS/blob/main/keys/lnos-public-key.pem"
+    # Download and import public key
+    curl -fsSL "https://raw.githubusercontent.com/bakkertj/LnOS/main/keys/lnos-public-key.asc" | gpg --import || {
+        echo -e "${RED}❌ Failed to import public key${NC}"
+        echo "Please manually import the public key:"
+        echo "curl -fsSL https://raw.githubusercontent.com/bakkertj/LnOS/main/keys/lnos-public-key.asc | gpg --import"
         exit 1
     }
     
-    echo -e "${GREEN}✅ Public key downloaded${NC}"
+    echo -e "${GREEN}✅ Public key imported${NC}"
 fi
 
 echo "📁 File: $FILE"
 echo "🔏 Signature: $SIG_FILE"
-echo "🔑 Public Key: $PUBLIC_KEY"
+echo "🔑 GPG Key ID: $LNOS_KEY_ID"
 echo ""
 
 # Display file information
@@ -81,12 +84,17 @@ echo "Size: $(ls -lh "$FILE" | awk '{print $5}')"
 echo "SHA256: $(sha256sum "$FILE" | cut -d' ' -f1)"
 echo ""
 
-# Verify signature
-echo -e "${BLUE}🔍 Verifying digital signature...${NC}"
+# Verify GPG signature
+echo -e "${BLUE}🔍 Verifying GPG signature...${NC}"
 
-if openssl dgst -sha256 -verify "$PUBLIC_KEY" -signature "$SIG_FILE" "$FILE" >/dev/null 2>&1; then
+if gpg --verify "$SIG_FILE" "$FILE" >/dev/null 2>&1; then
     echo -e "${GREEN}✅ SIGNATURE VALID${NC}"
     echo "The file is authentic and has not been tampered with."
+    echo ""
+    
+    # Show signature details
+    echo -e "${BLUE}📋 Signature Details:${NC}"
+    gpg --verify "$SIG_FILE" "$FILE" 2>&1 | grep -E "(Good signature|using|created)" || true
     echo ""
     echo -e "${GREEN}🎉 This file is officially signed by the LnOS development team${NC}"
 else
@@ -98,7 +106,10 @@ else
     echo "- File was corrupted during download"
     echo "- File has been modified or tampered with"
     echo "- Wrong signature file for this file"
-    echo "- Public key is incorrect or outdated"
+    echo "- GPG key is incorrect or outdated"
+    echo ""
+    echo "Detailed GPG output:"
+    gpg --verify "$SIG_FILE" "$FILE" 2>&1 || true
     exit 1
 fi
 
