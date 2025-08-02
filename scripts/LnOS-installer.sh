@@ -31,6 +31,7 @@ if ! command -v gum &> /dev/null; then
     pacman -Sy --noconfirm gum
 fi
 
+
 # logging functions (only for 1 line)
 gum_echo()
 {
@@ -78,6 +79,12 @@ setup_desktop_and_packages()
         "Hyprland(Tiling WM, basic dotfiles but requires more DIY)")
             gum_echo "Installing Hyprland..."
             pacman -S --noconfirm wayland hyprland
+
+            # call and run JaKooLit's arch hyprland install
+            gum_echo "Downloading JaKooLit's hyprland, please run the script after installation!"
+            sleep 10
+            wget https://raw.githubusercontent.com/JaKooLit/Arch-Hyprland/main/auto-install.sh
+        
             ;;
 		"DWM(similar to Hyprland)")
             gum_echo "Installing DWM..."
@@ -149,7 +156,7 @@ setup_desktop_and_packages()
 # Function to configure the system (common for both architectures)
 configure_system()
 {
-		# install gum again for pretty format
+    # install gum again for pretty format
     pacman -Sy --noconfirm gum
 
     # Set timezone
@@ -215,7 +222,7 @@ configure_system()
 
     # Update and Install essential packages
     pacman -Syu --noconfirm
-    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw
+    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw wget curl
 
     # Enable network services
     systemctl enable dhcpcd
