@@ -23,5 +23,4 @@ file_permissions=(
   ["/etc/os-release"]="0:0:644"
   ["/autorun.inf"]="0:0:644"
   ["/README.txt"]="0:0:644"
-  ["/scripts/verify-signature.sh"]="0:0:755"
 )
