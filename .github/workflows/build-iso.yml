@@ -214,6 +214,7 @@ jobs:
               
               # Create detached ASCII-armored signature
               gpg --batch --yes \
+                  --pinentry-mode loopback \
                   --passphrase "$GPG_PASSPHRASE" \
                   --local-user "$KEY_ID" \
                   --detach-sign \
