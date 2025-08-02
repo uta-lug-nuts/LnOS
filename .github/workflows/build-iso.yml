@@ -251,7 +251,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: LnOS Release ${{ steps.tag.outputs.tag }}
           body: |
-            ## 🔐 LnOS Custom Arch Linux Distribution
+            ## LnOS Custom Arch Linux Distribution
             
             ![GPG Signed](https://img.shields.io/badge/GPG-Signed-brightgreen?style=for-the-badge&logo=gnupg)
             ![Security Verified](https://img.shields.io/badge/Security-Verified-blue?style=for-the-badge&logo=shield)
@@ -262,17 +262,17 @@ jobs:
             This release contains custom minimal Arch Linux images with the LnOS installer.
             
             ### Features:
-            - 🔐 **Cryptographically signed** with GPG (Key: `9486759312876AD7`)
-            - 💿 Minimal Arch Linux base system
-            - 🎯 Interactive package selection
-            - 🖥️ Desktop environment choices (GNOME, KDE, Hyprland, DWM, TTY)
-            - 📚 CSE and Custom installation profiles
-            - ⚡ Automated partitioning and installation
+            - **Cryptographically signed** with GPG (Key: `9486759312876AD7`)
+            - Minimal Arch Linux base system
+            - Interactive package selection
+            - Desktop environment choices (GNOME, KDE, Hyprland, DWM, TTY)
+            - CSE and Custom installation profiles
+            - Automated partitioning and installation
             
             ### Files Included:
             - **x86_64 ISO/IMG**: For VMs, Intel/AMD computers, and USB boot
             - **ARM64 IMG**: SD card image for Raspberry Pi 4 and ARM64 devices
-            - **🔐 Digital Signatures**: `.asc` files for verifying authenticity
+            - **Digital Signatures**: `.asc` files for verifying authenticity
             
             **Note**: Large files (>1GB) are compressed with XZ to stay under GitHub's 2GB limit. Files under 1GB are uncompressed and ready to use.
             
