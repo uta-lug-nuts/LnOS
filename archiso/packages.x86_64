@@ -29,8 +29,6 @@ mdadm
 networkmanager
 dhcpcd
 iw
-nmcli
-nmtui
 wget
 curl
 
