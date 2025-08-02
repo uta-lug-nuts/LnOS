@@ -255,13 +255,11 @@ setup_drive()
         exit 1
     fi
 
+    NVME=0
     # check what type of drive
-    if [[ "$DISK" == "nvme"* ]]; then
-        gum_echo "Using NVME drive"
+    if grep -q "nvme" <<< "$DISK"; then
         NVME=1
-    else
-        NVME=0
-    fi
+    fi   
 
     # Detect UEFI or BIOS
     if [ -d /sys/firmware/efi ]; then
@@ -284,7 +282,7 @@ setup_drive()
     if [ $UEFI -eq 1 ]; then
         parted "$DISK" mklabel gpt
         parted "$DISK" mkpart ESP fat32 1MiB 513MiB
-        parted "$DISK" set 1 esp on
+        parted "$DISK" set 1 esp on        
         if [ $SWAP_SIZE -gt 0 ]; then
             parted "$DISK" mkpart swap linux-swap 513MiB $((513 + SWAP_SIZE))MiB
             parted "$DISK" mkpart root btrfs $((513 + SWAP_SIZE))MiB 100%
