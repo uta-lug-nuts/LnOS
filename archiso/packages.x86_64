@@ -55,5 +55,9 @@ squashfs-tools
 mkinitcpio
 mtools
 
+# Additional initramfs support
+linux-atm
+ppp
+
 # Your installer requirements
 gum
