@@ -255,10 +255,11 @@ setup_drive()
         exit 1
     fi
 
-    NVME=0
     # check what type of drive
     if grep -q "nvme" <<< "$DISK"; then
         NVME=1
+    else
+        NVME=0
     fi   
 
     # Detect UEFI or BIOS
@@ -318,14 +319,19 @@ setup_drive()
         fi
     fi
     if [ $SWAP_SIZE -gt 0 ]; then
-        
+        # account for NVME 
         if [ $NVME -eq 1 ]; then
             mkswap "${DISK}p${SWAP_PART}" 
         else
             mkswap "${DISK}${SWAP_PART}" 
         fi
     fi
-    mkfs.btrfs -f "${DISK}${ROOT_PART}"  
+    
+    if [ $NVME -eq 1 ];then
+        mkfs.btrfs -f "${DISK}p${ROOT_PART}"  
+    else
+        mkfs.btrfs -f "${DISK}${ROOT_PART}"  
+    fi
 
     # Mount partitions
     if [ $NVME -eq 1 ]; then
