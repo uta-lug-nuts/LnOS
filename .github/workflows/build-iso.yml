@@ -29,6 +29,10 @@ on:
           - 'aarch64'
           - 'both'
 
+# add write permissions
+permissions:
+  contents: write
+
 jobs:
   build-x86_64:
     if: ${{ github.event.inputs.architecture == 'x86_64' || github.event.inputs.architecture == 'both' || github.event.inputs.architecture == '' }}
