@@ -100,30 +100,17 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             archlinux:latest \
-            bash -c "
-              # Function to check disk space and fail if too low
-              check_disk_space() {
-                local min_space_gb=5
-                local available_gb=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
-                echo "Available disk space: ${available_gb}GB"
-                if [ "$available_gb" -lt "$min_space_gb" ]; then
-                  echo "ERROR: Insufficient disk space! Only ${available_gb}GB available, need at least ${min_space_gb}GB"
-                  exit 1
-                fi
-              }
-              
+            bash -c '
               # Monitor disk space
-              echo '=== DISK SPACE BEFORE INSTALL ==='
+              echo "=== DISK SPACE BEFORE INSTALL ==="
               df -h
-              check_disk_space
               
               # Install minimal required tools (avoid base-devel to save space)
               pacman -Syu --noconfirm
               pacman -S --noconfirm git wget parted dosfstools e2fsprogs multipath-tools
               
-              echo '=== DISK SPACE AFTER PACKAGE INSTALL ==='
+              echo "=== DISK SPACE AFTER PACKAGE INSTALL ==="
               df -h
-              check_disk_space
               
               # Clean up package cache to save space
               pacman -Sc --noconfirm
@@ -132,32 +119,29 @@ jobs:
               rm -rf /var/cache/pacman/pkg/*
               rm -rf /tmp/*
               
-              echo '=== DISK SPACE AFTER CLEANUP ==='
+              echo "=== DISK SPACE AFTER CLEANUP ==="
               df -h
-              check_disk_space
               
               chmod +x build-arm-image.sh build-arm-minimal.sh
               
               # Check disk space before building images
-              echo '=== DISK SPACE BEFORE IMAGE BUILD ==='
+              echo "=== DISK SPACE BEFORE IMAGE BUILD ==="
               df -h
-              check_disk_space
               
               # Build minimal ARM64 SD card image first (smaller, faster)
-              echo '=== BUILDING MINIMAL ARM IMAGE ==='
+              echo "=== BUILDING MINIMAL ARM IMAGE ==="
               ./build-arm-minimal.sh rpi4
               
-              echo '=== DISK SPACE AFTER MINIMAL BUILD ==='
+              echo "=== DISK SPACE AFTER MINIMAL BUILD ==="
               df -h
-              check_disk_space
               
               # Build full ARM64 SD card image
-              echo '=== BUILDING FULL ARM IMAGE ==='
+              echo "=== BUILDING FULL ARM IMAGE ==="
               ./build-arm-image.sh rpi4
               
-              echo '=== DISK SPACE AFTER FULL BUILD ==='
+              echo "=== DISK SPACE AFTER FULL BUILD ==="
               df -h
-            "
+            '
 
       - name: Upload aarch64 SD card images
         uses: actions/upload-artifact@v4
