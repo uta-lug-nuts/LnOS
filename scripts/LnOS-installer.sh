@@ -256,7 +256,8 @@ setup_drive()
     fi
 
     # check what type of drive
-    if [ "$DISK" == "nvme"* ]; then
+    if [[ "$DISK" == "nvme"* ]]; then
+        gum_echo "Using NVME drive"
         NVME=1
     else
         NVME=0
@@ -312,36 +313,36 @@ setup_drive()
     # Format partitions 
     if [ $UEFI -eq 1 ]; then
         # account for NVME drives seperating paritions with p
-        if [ $NVME -ne 1 ]; then
-            mkfs.fat -F32 "${DISK}${BOOT_PART}"
-        else
+        if [ $NVME -eq 1 ]; then
             mkfs.fat -F32 "${DISK}p${BOOT_PART}"  
+        else
+            mkfs.fat -F32 "${DISK}${BOOT_PART}"
         fi
     fi
     if [ $SWAP_SIZE -gt 0 ]; then
         
-        if [ $NVME -ne 1 ]; then
-            mkswap "${DISK}${SWAP_PART}" 
-        else
+        if [ $NVME -eq 1 ]; then
             mkswap "${DISK}p${SWAP_PART}" 
+        else
+            mkswap "${DISK}${SWAP_PART}" 
         fi
     fi
     mkfs.btrfs -f "${DISK}${ROOT_PART}"  
 
     # Mount partitions
-    if [ $NVME -ne 1 ]; then
-        mount "${DISK}${ROOT_PART}" /mnt
-    else
+    if [ $NVME -eq 1 ]; then
         mount "${DISK}p${ROOT_PART}" /mnt
+    else
+        mount "${DISK}${ROOT_PART}" /mnt
     fi
 
     if [ $UEFI -eq 1 ]; then
-        if [ $NVME -ne 1 ]; then
-            mkdir /mnt/boot
-            mount "${DISK}${BOOT_PART}" /mnt/boot
-        else
+        if [ $NVME -eq 1 ]; then
             mkdir /mnt/boot
             mount "${DISK}p${BOOT_PART}" /mnt/boot
+        else
+            mkdir /mnt/boot
+            mount "${DISK}${BOOT_PART}" /mnt/boot
         fi
     fi
 }
