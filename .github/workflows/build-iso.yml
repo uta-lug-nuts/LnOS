@@ -190,6 +190,62 @@ jobs:
           echo "=== FINAL FILES ==="
           ls -lh
 
+      - name: Sign release files
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ISO'
+        env:
+          SIGNSERVER_URL: ${{ secrets.SIGNSERVER_URL }}
+          SIGNSERVER_USERNAME: ${{ secrets.SIGNSERVER_USERNAME }}
+          SIGNSERVER_PASSWORD: ${{ secrets.SIGNSERVER_PASSWORD }}
+          SIGNSERVER_WORKER_ID: ${{ secrets.SIGNSERVER_WORKER_ID }}
+        run: |
+          cd ./isos/
+          
+          echo "🔐 Signing release files with SignServer..."
+          
+          # Function to sign a file
+          sign_file() {
+            local file="$1"
+            local output_sig="${file}.sig"
+            
+            echo "Signing: $file"
+            
+            # Sign via SignServer HTTP API
+            curl -X POST \
+              -u "$SIGNSERVER_USERNAME:$SIGNSERVER_PASSWORD" \
+              -F "workerName=$SIGNSERVER_WORKER_ID" \
+              -F "data=@$file" \
+              -F "encoding=binary" \
+              "$SIGNSERVER_URL/signserver/process" \
+              -o "$output_sig"
+            
+            if [ $? -eq 0 ] && [ -f "$output_sig" ]; then
+              echo "✅ Successfully signed: $file -> $output_sig"
+              # Verify signature file is not empty
+              if [ -s "$output_sig" ]; then
+                echo "📝 Signature size: $(wc -c < "$output_sig") bytes"
+              else
+                echo "❌ Warning: Signature file is empty"
+                rm -f "$output_sig"
+                return 1
+              fi
+            else
+              echo "❌ Failed to sign: $file"
+              rm -f "$output_sig"
+              return 1
+            fi
+          }
+          
+          # Sign all release files
+          for file in *.iso *.img *.xz; do
+            if [ -f "$file" ]; then
+              sign_file "$file" || echo "⚠️ Failed to sign $file"
+            fi
+          done
+          
+          echo ""
+          echo "=== SIGNED FILES ==="
+          ls -lh *.sig 2>/dev/null || echo "No signature files found"
+
       - name: Generate release tag
         id: tag
         run: |
@@ -214,14 +270,26 @@ jobs:
             - Automated partitioning and installation
             
             ### Files Included:
-            - **x86_64 ISO.XZ**: Compressed ISO for VMs, Intel/AMD computers, and USB boot
-            - **ARM64 IMG.XZ**: Compressed SD card image for Raspberry Pi 4 and ARM64 devices
+            - **x86_64 ISO/IMG**: For VMs, Intel/AMD computers, and USB boot
+            - **ARM64 IMG**: SD card image for Raspberry Pi 4 and ARM64 devices
+            - **Digital Signatures**: `.sig` files for verifying authenticity
             
             **Note**: Large files (>1GB) are compressed with XZ to stay under GitHub's 2GB limit. Files under 1GB are uncompressed and ready to use.
             
+            ### Digital Signature Verification:
+            All release files are digitally signed with our SignServer PKI. Verify authenticity using:
+            ```bash
+            # Download both file and signature
+            curl -LO <file_url>
+            curl -LO <file_url>.sig
+            
+            # Verify signature (requires our public key)
+            openssl dgst -verify lnos-public-key.pem -signature file.sig file
+            ```
+            
             ### Checksums:
             ```
-            $(cd isos && sha256sum *.xz 2>/dev/null || echo "Checksums will be calculated...")
+            $(cd isos && sha256sum * 2>/dev/null || echo "Checksums will be calculated...")
             ```
           files: ./isos/*
           draft: false
