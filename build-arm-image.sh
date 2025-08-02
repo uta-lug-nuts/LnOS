@@ -35,20 +35,42 @@ fi
 
 print_status "Building LnOS ARM64 image for $DEVICE..."
 
+# Function to check disk space and fail if too low
+check_disk_space() {
+    local min_space_gb=3
+    local available_gb=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
+    print_status "Available disk space: ${available_gb}GB"
+    if [ "$available_gb" -lt "$min_space_gb" ]; then
+        print_error "Insufficient disk space! Only ${available_gb}GB available, need at least ${min_space_gb}GB"
+        exit 1
+    fi
+}
+
 # Check available disk space
 print_status "Checking available disk space..."
 df -h
+check_disk_space
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
 # Create a 1.5GB image file (will be expanded on first boot)
 print_status "Creating 1.5GB base image file..."
-dd if=/dev/zero of="$OUTPUT_DIR/$IMAGE_NAME" bs=1M count=1536
+if ! dd if=/dev/zero of="$OUTPUT_DIR/$IMAGE_NAME" bs=1M count=1536; then
+    print_error "Failed to create image file! Check disk space."
+    exit 1
+fi
+
+# Verify image was created and has correct size
+if [ ! -f "$OUTPUT_DIR/$IMAGE_NAME" ] || [ $(stat -c%s "$OUTPUT_DIR/$IMAGE_NAME") -lt $((1536*1024*1024)) ]; then
+    print_error "Image file creation failed or file is too small!"
+    exit 1
+fi
 
 # Check disk space after image creation
 print_status "Disk space after image creation:"
 df -h
+check_disk_space
 
 # Set up loop device
 print_status "Setting up loop device..."
@@ -127,7 +149,12 @@ esac
 wget -O "/tmp/archlinuxarm.tar.gz" "$TARBALL_URL"
 
 print_status "Extracting root filesystem..."
-tar -xzf "/tmp/archlinuxarm.tar.gz" -C "$MOUNT_DIR"
+if ! tar -xzf "/tmp/archlinuxarm.tar.gz" -C "$MOUNT_DIR"; then
+    print_error "Failed to extract root filesystem! Check disk space."
+    print_error "Current disk space:"
+    df -h
+    exit 1
+fi
 
 # Clean up downloaded tarball to save space
 print_status "Cleaning up downloaded tarball..."

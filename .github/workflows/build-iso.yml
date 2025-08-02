@@ -101,9 +101,21 @@ jobs:
             -w /workspace \
             archlinux:latest \
             bash -c "
+              # Function to check disk space and fail if too low
+              check_disk_space() {
+                local min_space_gb=5
+                local available_gb=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
+                echo "Available disk space: ${available_gb}GB"
+                if [ "$available_gb" -lt "$min_space_gb" ]; then
+                  echo "ERROR: Insufficient disk space! Only ${available_gb}GB available, need at least ${min_space_gb}GB"
+                  exit 1
+                fi
+              }
+              
               # Monitor disk space
               echo '=== DISK SPACE BEFORE INSTALL ==='
               df -h
+              check_disk_space
               
               # Install minimal required tools (avoid base-devel to save space)
               pacman -Syu --noconfirm
@@ -111,6 +123,7 @@ jobs:
               
               echo '=== DISK SPACE AFTER PACKAGE INSTALL ==='
               df -h
+              check_disk_space
               
               # Clean up package cache to save space
               pacman -Sc --noconfirm
@@ -121,12 +134,14 @@ jobs:
               
               echo '=== DISK SPACE AFTER CLEANUP ==='
               df -h
+              check_disk_space
               
               chmod +x build-arm-image.sh
               
               # Check disk space before building image
               echo '=== DISK SPACE BEFORE IMAGE BUILD ==='
               df -h
+              check_disk_space
               
               # Build ARM64 SD card image for Raspberry Pi 4
               ./build-arm-image.sh rpi4
