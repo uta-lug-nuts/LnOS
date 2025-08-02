@@ -255,6 +255,13 @@ setup_drive()
         exit 1
     fi
 
+    # check what type of drive
+    if [ "$DISK" == "nvme"* ]; then
+        NVME=1
+    else
+        NVME=0
+    fi
+
     # Detect UEFI or BIOS
     if [ -d /sys/firmware/efi ]; then
         UEFI=1
@@ -302,20 +309,40 @@ setup_drive()
         fi
     fi
 
-    # Format partitions (corrected to use ${DISK}${PARTITION})
+    # Format partitions 
     if [ $UEFI -eq 1 ]; then
-        mkfs.fat -F32 "${DISK}${BOOT_PART}"  # e.g., /dev/nvme0n1p1
+        # account for NVME drives seperating paritions with p
+        if [ $NVME -ne 1 ]; then
+            mkfs.fat -F32 "${DISK}${BOOT_PART}"
+        else
+            mkfs.fat -F32 "${DISK}p${BOOT_PART}"  
+        fi
     fi
     if [ $SWAP_SIZE -gt 0 ]; then
-        mkswap "${DISK}${SWAP_PART}"  # e.g., /dev/nvme0n1p2
+        
+        if [ $NVME -ne 1 ]; then
+            mkswap "${DISK}${SWAP_PART}" 
+        else
+            mkswap "${DISK}p${SWAP_PART}" 
+        fi
     fi
-    mkfs.btrfs -f "${DISK}${ROOT_PART}"  # e.g., /dev/nvme0n1p3
+    mkfs.btrfs -f "${DISK}${ROOT_PART}"  
 
     # Mount partitions
-    mount "${DISK}${ROOT_PART}" /mnt
+    if [ $NVME -ne 1 ]; then
+        mount "${DISK}${ROOT_PART}" /mnt
+    else
+        mount "${DISK}p${ROOT_PART}" /mnt
+    fi
+
     if [ $UEFI -eq 1 ]; then
-        mkdir /mnt/boot
-        mount "${DISK}${BOOT_PART}" /mnt/boot
+        if [ $NVME -ne 1 ]; then
+            mkdir /mnt/boot
+            mount "${DISK}${BOOT_PART}" /mnt/boot
+        else
+            mkdir /mnt/boot
+            mount "${DISK}p${BOOT_PART}" /mnt/boot
+        fi
     fi
 }
 
