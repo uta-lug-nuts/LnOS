@@ -288,10 +288,10 @@ jobs:
             **Verification Methods:**
             ```bash
             # Quick verification (auto-imports key)
-            curl -fsSL https://raw.githubusercontent.com/bakkertj/LnOS/main/scripts/verify-signature.sh | bash -s -- <filename>
+            curl -fsSL https://raw.githubusercontent.com/uta-lug-nuts/LnOS/main/scripts/verify-signature.sh | bash -s -- <filename>
             
             # Manual verification
-            curl -fsSL https://raw.githubusercontent.com/bakkertj/LnOS/main/keys/lnos-public-key.asc | gpg --import
+            curl -fsSL https://raw.githubusercontent.com/uta-lug-nuts/LnOS/main/keys/lnos-public-key.asc | gpg --import
             gpg --verify <filename>.asc <filename>
             ```
             
