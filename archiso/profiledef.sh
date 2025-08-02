@@ -18,6 +18,7 @@ airootfs_image_tool_options=('-comp' 'xz' '-Xdict-size' '75%' '-b' '1M')
 file_permissions=(
   ["/root"]="0:0:750"
   ["/usr/local/bin/LnOS-installer.sh"]="0:0:755"
+  ["/usr/local/bin/lnos-autostart.sh"]="0:0:755"
   ["/.discinfo"]="0:0:644"
   ["/etc/os-release"]="0:0:644"
   ["/autorun.inf"]="0:0:644"

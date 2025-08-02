@@ -23,7 +23,7 @@ cp -r /usr/share/lnos/pacman_packages /root/LnOS/scripts/
 # Make installer executable
 chmod +x /root/LnOS/scripts/LnOS-installer.sh
 
-# Create a welcome message and auto-start installer option
+# Create a simple bashrc that shows manual instructions if needed
 cat > /root/.bashrc << 'EOF'
 #!/bin/bash
 
@@ -32,55 +32,24 @@ if [ -f /etc/bash.bashrc ]; then
     source /etc/bash.bashrc
 fi
 
-# Only show welcome on first login (tty1)
+# Show manual instructions if someone drops to shell
 if [[ $(tty) == "/dev/tty1" ]]; then
-    echo "=========================================="
-    echo "      Welcome to LnOS Live Environment"
-    echo "=========================================="
-    echo ""
-    echo "Network should be automatically configured."
-    echo ""
-    echo "Options:"
-    echo "  1. Start LnOS installer automatically"
-    echo "  2. Drop to shell"
-    echo ""
-    
-    # Ask user if they want to start installer automatically
-    read -p "Start installer now? [Y/n]: " -n 1 -r
-    echo ""
-    
-    if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-        echo "Starting LnOS installer..."
-        cd /root/LnOS/scripts
-        
-        # Auto-detect architecture
-        ARCH=$(uname -m)
-        if [[ "$ARCH" == "x86_64" ]]; then
-            TARGET="x86_64"
-        elif [[ "$ARCH" == "aarch64" ]]; then
-            TARGET="aarch64"
-        else
-            TARGET="x86_64"  # fallback
-        fi
-        
-        echo "Detected architecture: $ARCH (target: $TARGET)"
-        ./LnOS-installer.sh --target=$TARGET
+    # Auto-detect architecture for manual instructions
+    ARCH=$(uname -m)
+    if [[ "$ARCH" == "x86_64" ]]; then
+        TARGET="x86_64"
+    elif [[ "$ARCH" == "aarch64" ]]; then
+        TARGET="aarch64" 
     else
-        # Auto-detect architecture for manual instructions too
-        ARCH=$(uname -m)
-        if [[ "$ARCH" == "x86_64" ]]; then
-            TARGET="x86_64"
-        elif [[ "$ARCH" == "aarch64" ]]; then
-            TARGET="aarch64" 
-        else
-            TARGET="x86_64"  # fallback
-        fi
-        
-        echo "Dropped to shell. To start installer later, run:"
-        echo "  cd /root/LnOS/scripts && ./LnOS-installer.sh --target=$TARGET"
-        echo ""
-        echo "For help: ./LnOS-installer.sh --help"
-        echo "=========================================="
+        TARGET="x86_64"  # fallback
     fi
+    
+    echo ""
+    echo "=========================================="
+    echo "Manual installer instructions:"
+    echo "  cd /root/LnOS/scripts && ./LnOS-installer.sh --target=$TARGET"
+    echo ""
+    echo "For help: ./LnOS-installer.sh --help"
+    echo "=========================================="
 fi
 EOF
