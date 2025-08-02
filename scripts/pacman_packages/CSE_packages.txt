@@ -6,4 +6,4 @@ gcc
 gdb
 cmake
 python
-docker
+proton-vpn-gtk-appdocker

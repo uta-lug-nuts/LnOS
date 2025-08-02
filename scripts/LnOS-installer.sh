@@ -31,6 +31,7 @@ if ! command -v gum &> /dev/null; then
     pacman -Sy --noconfirm gum
 fi
 
+
 # logging functions (only for 1 line)
 gum_echo()
 {
@@ -38,7 +39,7 @@ gum_echo()
 }
 gum_error()
 {
-    gum style --border normal --margin "1 2" --padding "2 4" --border-double --border-foreground 1 "$@"
+    gum style --border double --margin "1 2" --padding "2 4"  --border-foreground 1 "$@"
 }
 gum_complete()
 {
@@ -77,7 +78,13 @@ setup_desktop_and_packages()
             ;;
         "Hyprland(Tiling WM, basic dotfiles but requires more DIY)")
             gum_echo "Installing Hyprland..."
-            pacman -S --noconfirm wayland hyprland
+            pacman -S --noconfirm wayland hyprland noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
+
+            # call and run JaKooLit's arch hyprland install
+            gum_echo "Downloading JaKooLit's hyprland, please run the script after installation!"
+            sleep 10
+            wget https://raw.githubusercontent.com/JaKooLit/Arch-Hyprland/main/auto-install.sh
+        
             ;;
 		"DWM(similar to Hyprland)")
             gum_echo "Installing DWM..."
@@ -149,7 +156,7 @@ setup_desktop_and_packages()
 # Function to configure the system (common for both architectures)
 configure_system()
 {
-		# install gum again for pretty format
+    # install gum again for pretty format
     pacman -Sy --noconfirm gum
 
     # Set timezone
@@ -215,7 +222,7 @@ configure_system()
 
     # Update and Install essential packages
     pacman -Syu --noconfirm
-    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw
+    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw netcl wget curl
 
     # Enable network services
     systemctl enable dhcpcd
@@ -234,10 +241,8 @@ configure_system()
 # * Automatically detects UEFI or BIOS, this will mount the parititions as well
 setup_drive()
 {
-	# Prompt user to select a disk
-    DISK_SELECTION=$(lsblk -do NAME,SIZE,MODEL | gum choose --header "Select the disk to install on (or Ctrl-C to exit):")
-
-    # Grab only the path of the disk
+    # Prompt user to select a disk
+    DISK_SELECTION=$(lsblk -d -o NAME,SIZE,MODEL,TYPE | grep -E 'disk' | grep -E 'nvme|sd[a-z]|mmcblk[0-9]' | gum choose --header "Select the disk to install on (or Ctrl-C to exit):")
     DISK="/dev/$(echo "$DISK_SELECTION" | awk '{print $1}')"
 
     if [ -z "$DISK" ]; then
@@ -245,74 +250,105 @@ setup_drive()
         exit 1
     fi
 
-	# Confirm disk selection
-	if ! gum confirm "WARNING: This will erase all data on $DISK. Continue?"; then
-		exit 1
-	fi
+    # Confirm disk selection
+    if ! gum confirm "WARNING: This will erase all data on $DISK. Continue?"; then
+        exit 1
+    fi
 
-	# Detect UEFI or BIOS
-	if [ -d /sys/firmware/efi ]; then
-		UEFI=1
-	else
-		UEFI=0
-	fi
+    # check what type of drive
+    if grep -q "nvme" <<< "$DISK"; then
+        NVME=1
+    else
+        NVME=0
+    fi   
 
-	# Check RAM and decide swap size
-	RAM_GB=$(awk '/MemTotal/ {print int($2 / 1024 / 1024)}' /proc/meminfo)
-	if [ $RAM_GB -lt 15 ]; then
-		SWAP_SIZE=4096  # 4 GiB
-		gum_echo "System has ${RAM_GB}GB RAM. Creating 4 GiB swap partition"
-	else
-		SWAP_SIZE=0
-		gum_echo "System has ${RAM_GB}GB RAM."
-	fi
+    # Detect UEFI or BIOS
+    if [ -d /sys/firmware/efi ]; then
+        UEFI=1
+    else
+        UEFI=0
+    fi
 
-	# Partition the disk UEFI and DOS compatible
-	if [ $UEFI -eq 1 ]; then
-		parted $DISK mklabel gpt
-		parted $DISK mkpart ESP fat32 1MiB 513MiB
-		parted $DISK set 1 esp on
-		if [ $SWAP_SIZE -gt 0 ]; then
-				parted $DISK mkpart swap linux-swap 513MiB $((513 + SWAP_SIZE))MiB
-				parted $DISK mkpart root btrfs $((513 + SWAP_SIZE))MiB 100%
-				SWAP_PART=2
-				ROOT_PART=3
-		else
-				parted $DISK mkpart root btrfs 513MiB 100%
-				ROOT_PART=2
-		fi
-		BOOT_PART=1
-	else
-		parted $DISK mklabel msdos
-		if [ $SWAP_SIZE -gt 0 ]; then
-				parted $DISK mkpart primary linux-swap 1MiB ${SWAP_SIZE}MiB
-				parted $DISK mkpart primary btrfs ${SWAP_SIZE}MiB 100%
-				parted $DISK set 2 boot on
-				SWAP_PART=1
-				ROOT_PART=2
-		else
-				parted $DISK mkpart primary btrfs 1MiB 100%
-				parted $DISK set 1 boot on
-				ROOT_PART=1
-		fi
-	fi
+    # Check RAM and decide swap size
+    RAM_GB=$(awk '/MemTotal/ {print int($2 / 1024 / 1024)}' /proc/meminfo)
+    if [ "$RAM_GB" -lt 15 ]; then
+        SWAP_SIZE=4096  # 4 GiB
+        gum_echo "System has ${RAM_GB}GB RAM. Creating 4 GiB swap partition"
+    else
+        SWAP_SIZE=0
+        gum_echo "System has ${RAM_GB}GB RAM."
+    fi
 
-	# Format partitions
-	if [ $UEFI -eq 1 ]; then
-		mkfs.fat -F32 ${DISK}${BOOT_PART}
-	fi
-	if [ $SWAP_SIZE -gt 0 ]; then
-		mkswap ${DISK}${SWAP_PART}
-	fi
-	mkfs.btrfs -f ${DISK}${ROOT_PART}
+    # Partition the disk UEFI and DOS compatible
+    if [ $UEFI -eq 1 ]; then
+        parted "$DISK" mklabel gpt
+        parted "$DISK" mkpart ESP fat32 1MiB 513MiB
+        parted "$DISK" set 1 esp on        
+        if [ $SWAP_SIZE -gt 0 ]; then
+            parted "$DISK" mkpart swap linux-swap 513MiB $((513 + SWAP_SIZE))MiB
+            parted "$DISK" mkpart root btrfs $((513 + SWAP_SIZE))MiB 100%
+            SWAP_PART=2
+            ROOT_PART=3
+        else
+            parted "$DISK" mkpart root btrfs 513MiB 100%
+            ROOT_PART=2
+        fi
+        BOOT_PART=1
+    else
+        parted "$DISK" mklabel msdos
+        if [ $SWAP_SIZE -gt 0 ]; then
+            parted "$DISK" mkpart primary linux-swap 1MiB ${SWAP_SIZE}MiB
+            parted "$DISK" mkpart primary btrfs ${SWAP_SIZE}MiB 100%
+            parted "$DISK" set 2 boot on
+            SWAP_PART=1
+            ROOT_PART=2
+        else
+            parted "$DISK" mkpart primary btrfs 1MiB 100%
+            parted "$DISK" set 1 boot on
+            ROOT_PART=1
+        fi
+    fi
 
-	# Mount partitions
-	mount ${DISK}${ROOT_PART} /mnt
-	if [ $UEFI -eq 1 ]; then
-		mkdir /mnt/boot
-		mount ${DISK}${BOOT_PART} /mnt/boot
-	fi
+    # Format partitions 
+    if [ $UEFI -eq 1 ]; then
+        # account for NVME drives seperating paritions with p
+        if [ $NVME -eq 1 ]; then
+            mkfs.fat -F32 "${DISK}p${BOOT_PART}"  
+        else
+            mkfs.fat -F32 "${DISK}${BOOT_PART}"
+        fi
+    fi
+    if [ $SWAP_SIZE -gt 0 ]; then
+        # account for NVME 
+        if [ $NVME -eq 1 ]; then
+            mkswap "${DISK}p${SWAP_PART}" 
+        else
+            mkswap "${DISK}${SWAP_PART}" 
+        fi
+    fi
+    
+    if [ $NVME -eq 1 ];then
+        mkfs.btrfs -f "${DISK}p${ROOT_PART}"  
+    else
+        mkfs.btrfs -f "${DISK}${ROOT_PART}"  
+    fi
 
+    # Mount partitions
+    if [ $NVME -eq 1 ]; then
+        mount "${DISK}p${ROOT_PART}" /mnt
+    else
+        mount "${DISK}${ROOT_PART}" /mnt
+    fi
+
+    if [ $UEFI -eq 1 ]; then
+        if [ $NVME -eq 1 ]; then
+            mkdir /mnt/boot
+            mount "${DISK}p${BOOT_PART}" /mnt/boot
+        else
+            mkdir /mnt/boot
+            mount "${DISK}${BOOT_PART}" /mnt/boot
+        fi
+    fi
 }
 
 # Copies the repo's files into the chroot, this is for it to be permenant on reboot
