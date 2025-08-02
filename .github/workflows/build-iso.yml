@@ -251,26 +251,41 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: LnOS Release ${{ steps.tag.outputs.tag }}
           body: |
-            ## LnOS Custom Arch Linux Distribution
+            ## 🔐 LnOS Custom Arch Linux Distribution
+            
+            ![GPG Signed](https://img.shields.io/badge/GPG-Signed-brightgreen?style=for-the-badge&logo=gnupg)
+            ![Security Verified](https://img.shields.io/badge/Security-Verified-blue?style=for-the-badge&logo=shield)
+            ![Integrity Guaranteed](https://img.shields.io/badge/Integrity-Guaranteed-orange?style=for-the-badge&logo=checkmarx)
+            
+            **🔒 This release is cryptographically signed for authenticity and integrity**
             
             This release contains custom minimal Arch Linux images with the LnOS installer.
             
             ### Features:
-            - Minimal Arch Linux base system
-            - Interactive package selection
-            - Desktop environment choices (GNOME, KDE, Hyprland, DWM, TTY)
-            - CSE and Custom installation profiles
-            - Automated partitioning and installation
+            - 🔐 **Cryptographically signed** with GPG (Key: `9486759312876AD7`)
+            - 💿 Minimal Arch Linux base system
+            - 🎯 Interactive package selection
+            - 🖥️ Desktop environment choices (GNOME, KDE, Hyprland, DWM, TTY)
+            - 📚 CSE and Custom installation profiles
+            - ⚡ Automated partitioning and installation
             
             ### Files Included:
             - **x86_64 ISO/IMG**: For VMs, Intel/AMD computers, and USB boot
             - **ARM64 IMG**: SD card image for Raspberry Pi 4 and ARM64 devices
-            - **Digital Signatures**: `.asc` files for verifying authenticity
+            - **🔐 Digital Signatures**: `.asc` files for verifying authenticity
             
             **Note**: Large files (>1GB) are compressed with XZ to stay under GitHub's 2GB limit. Files under 1GB are uncompressed and ready to use.
             
-            ### Digital Signature Verification:
-            All release files are digitally signed with GPG. Verify authenticity using:
+            ### 🛡️ Security & Digital Signature Verification:
+            
+            > ⚠️ **IMPORTANT**: Always verify file signatures before use! All release files are digitally signed with GPG.
+            
+            **GPG Key Information:**
+            - **Key ID**: `9486759312876AD7`
+            - **Fingerprint**: `FF3B 2203 9FA1 CBC0 72E5 8967 9486 7593 1287 6AD7`
+            - **Owner**: LnOS Development Team
+            
+            **Verification Methods:**
             ```bash
             # Quick verification (auto-imports key)
             curl -fsSL https://raw.githubusercontent.com/bakkertj/LnOS/main/scripts/verify-signature.sh | bash -s -- <filename>
