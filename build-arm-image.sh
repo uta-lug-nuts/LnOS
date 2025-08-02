@@ -35,12 +35,20 @@ fi
 
 print_status "Building LnOS ARM64 image for $DEVICE..."
 
+# Check available disk space
+print_status "Checking available disk space..."
+df -h
+
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
 # Create a 1GB image file (will be expanded on first boot)
 print_status "Creating 1GB base image file..."
 dd if=/dev/zero of="$OUTPUT_DIR/$IMAGE_NAME" bs=1M count=1024
+
+# Check disk space after image creation
+print_status "Disk space after image creation:"
+df -h
 
 # Set up loop device
 print_status "Setting up loop device..."
@@ -120,6 +128,10 @@ wget -O "/tmp/archlinuxarm.tar.gz" "$TARBALL_URL"
 
 print_status "Extracting root filesystem..."
 tar -xzf "/tmp/archlinuxarm.tar.gz" -C "$MOUNT_DIR"
+
+# Clean up downloaded tarball to save space
+print_status "Cleaning up downloaded tarball..."
+rm -f "/tmp/archlinuxarm.tar.gz"
 
 # Copy LnOS files
 print_status "Installing LnOS components..."
@@ -290,3 +302,7 @@ rm -f "/tmp/archlinuxarm.tar.gz"
 print_status "ARM64 image created: $OUTPUT_DIR/$IMAGE_NAME"
 print_status "To write to SD card: dd if=$OUTPUT_DIR/$IMAGE_NAME of=/dev/sdX bs=4M status=progress"
 print_status "Note: The 1GB image (256MB boot + 768MB root) will automatically expand to use the entire SD card space on first boot"
+
+# Final disk space check
+print_status "Final disk space check:"
+df -h

@@ -101,14 +101,30 @@ jobs:
             -w /workspace \
             archlinux:latest \
             bash -c "
-              # Install required tools
+              # Monitor disk space
+              echo '=== DISK SPACE BEFORE INSTALL ==='
+              df -h
+              
+              # Install minimal required tools (avoid base-devel to save space)
               pacman -Syu --noconfirm
-              pacman -S --noconfirm base-devel git wget parted dosfstools e2fsprogs multipath-tools
+              pacman -S --noconfirm git wget parted dosfstools e2fsprogs multipath-tools
+              
+              echo '=== DISK SPACE AFTER PACKAGE INSTALL ==='
+              df -h
+              
+              # Clean up package cache to save space
+              pacman -Sc --noconfirm
+              
+              echo '=== DISK SPACE AFTER CLEANUP ==='
+              df -h
               
               chmod +x build-arm-image.sh
               
               # Build ARM64 SD card image for Raspberry Pi 4
               ./build-arm-image.sh rpi4
+              
+              echo '=== DISK SPACE AFTER BUILD ==='
+              df -h
             "
 
       - name: Upload aarch64 SD card image
