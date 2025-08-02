@@ -91,9 +91,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build aarch64 SD card image
+      - name: Build aarch64 SD card images
         run: |
-          # Build ARM64 SD card image instead of ISO
+          # Build both full and minimal ARM64 SD card images
           docker run --rm --privileged \
             --cap-add=ALL \
             --security-opt=apparmor:unconfined \
@@ -136,21 +136,30 @@ jobs:
               df -h
               check_disk_space
               
-              chmod +x build-arm-image.sh
+              chmod +x build-arm-image.sh build-arm-minimal.sh
               
-              # Check disk space before building image
+              # Check disk space before building images
               echo '=== DISK SPACE BEFORE IMAGE BUILD ==='
               df -h
               check_disk_space
               
-              # Build ARM64 SD card image for Raspberry Pi 4
+              # Build minimal ARM64 SD card image first (smaller, faster)
+              echo '=== BUILDING MINIMAL ARM IMAGE ==='
+              ./build-arm-minimal.sh rpi4
+              
+              echo '=== DISK SPACE AFTER MINIMAL BUILD ==='
+              df -h
+              check_disk_space
+              
+              # Build full ARM64 SD card image
+              echo '=== BUILDING FULL ARM IMAGE ==='
               ./build-arm-image.sh rpi4
               
-              echo '=== DISK SPACE AFTER BUILD ==='
+              echo '=== DISK SPACE AFTER FULL BUILD ==='
               df -h
             "
 
-      - name: Upload aarch64 SD card image
+      - name: Upload aarch64 SD card images
         uses: actions/upload-artifact@v4
         with:
           name: lnos-aarch64-sdcard
