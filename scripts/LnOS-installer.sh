@@ -78,7 +78,7 @@ setup_desktop_and_packages()
             ;;
         "Hyprland(Tiling WM, basic dotfiles but requires more DIY)")
             gum_echo "Installing Hyprland..."
-            pacman -S --noconfirm wayland hyprland
+            pacman -S --noconfirm wayland hyprland noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
 
             # call and run JaKooLit's arch hyprland install
             gum_echo "Downloading JaKooLit's hyprland, please run the script after installation!"
@@ -222,7 +222,7 @@ configure_system()
 
     # Update and Install essential packages
     pacman -Syu --noconfirm
-    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw wget curl
+    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw netcl wget curl
 
     # Enable network services
     systemctl enable dhcpcd
