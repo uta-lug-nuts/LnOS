@@ -55,8 +55,8 @@ if [ ! -f "$SIG_FILE" ]; then
 fi
 
 # GPG key fingerprint for LnOS releases
-LNOS_KEY_FINGERPRINT="YOUR_KEY_FINGERPRINT_HERE"
-LNOS_KEY_ID="YOUR_KEY_ID_HERE"
+LNOS_KEY_FINGERPRINT="FF3B 2203 9FA1 CBC0 72E5  8967 9486 7593 1287 6AD7"
+LNOS_KEY_ID="9486759312876AD7"
 
 # Check if GPG key is imported
 if ! gpg --list-keys "$LNOS_KEY_ID" >/dev/null 2>&1; then
