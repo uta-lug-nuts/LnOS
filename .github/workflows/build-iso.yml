@@ -115,10 +115,18 @@ jobs:
               # Clean up package cache to save space
               pacman -Sc --noconfirm
               
+              # Additional cleanup to free more space
+              rm -rf /var/cache/pacman/pkg/*
+              rm -rf /tmp/*
+              
               echo '=== DISK SPACE AFTER CLEANUP ==='
               df -h
               
               chmod +x build-arm-image.sh
+              
+              # Check disk space before building image
+              echo '=== DISK SPACE BEFORE IMAGE BUILD ==='
+              df -h
               
               # Build ARM64 SD card image for Raspberry Pi 4
               ./build-arm-image.sh rpi4

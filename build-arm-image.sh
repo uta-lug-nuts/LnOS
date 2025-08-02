@@ -42,9 +42,9 @@ df -h
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Create a 1GB image file (will be expanded on first boot)
-print_status "Creating 1GB base image file..."
-dd if=/dev/zero of="$OUTPUT_DIR/$IMAGE_NAME" bs=1M count=1024
+# Create a 1.5GB image file (will be expanded on first boot)
+print_status "Creating 1.5GB base image file..."
+dd if=/dev/zero of="$OUTPUT_DIR/$IMAGE_NAME" bs=1M count=1536
 
 # Check disk space after image creation
 print_status "Disk space after image creation:"
@@ -301,7 +301,7 @@ rm -f "/tmp/archlinuxarm.tar.gz"
 
 print_status "ARM64 image created: $OUTPUT_DIR/$IMAGE_NAME"
 print_status "To write to SD card: dd if=$OUTPUT_DIR/$IMAGE_NAME of=/dev/sdX bs=4M status=progress"
-print_status "Note: The 1GB image (256MB boot + 768MB root) will automatically expand to use the entire SD card space on first boot"
+print_status "Note: The 1.5GB image (256MB boot + 1.3GB root) will automatically expand to use the entire SD card space on first boot"
 
 # Final disk space check
 print_status "Final disk space check:"
