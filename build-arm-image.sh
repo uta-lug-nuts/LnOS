@@ -256,17 +256,107 @@ chmod +x "$MOUNT_DIR/usr/local/bin/expand-rootfs.sh"
 cat > "$MOUNT_DIR/etc/systemd/system/expand-rootfs.service" << 'EOF'
 [Unit]
 Description=Expand root filesystem on first boot
-After=local-fs.target
-Before=network.target
+After=local-fs.target network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/expand-rootfs.sh
 RemainAfterExit=yes
+TimeoutSec=300
 
 [Install]
 WantedBy=multi-user.target
 EOF
+
+# Configure system settings
+print_status "Configuring system settings..."
+
+# Set default timezone
+ln -sf /usr/share/zoneinfo/UTC "$MOUNT_DIR/etc/localtime"
+
+# Configure pacman repositories
+cat > "$MOUNT_DIR/etc/pacman.conf" << 'EOF'
+#
+# /etc/pacman.conf
+#
+# See the pacman.conf(5) manpage for option and repository directives
+
+#
+# GENERAL OPTIONS
+#
+[options]
+# The following paths are commented out with their default values listed.
+# If you wish to use different paths, uncomment and update the paths.
+#RootDir     = /
+#DBPath      = /var/lib/pacman/
+#CacheDir    = /var/cache/pacman/pkg/
+#LogFile     = /var/log/pacman.log
+#GPGDir      = /etc/pacman.d/gnupg/
+#HookDir     = /etc/pacman.d/hooks/
+HoldPkg     = pacman glibc
+#XferCommand = /usr/bin/curl -L -C - -f -o %o %u
+#XferCommand = /usr/bin/wget --passive-ftp -c -O %o %u
+#CleanMethod = KeepInstalled
+Architecture = aarch64
+
+# Pacman won't upgrade packages listed in IgnorePkg and members of IgnoreGroup
+#IgnorePkg   =
+#IgnoreGroup =
+
+#NoUpgrade   =
+#NoExtract   =
+
+# Misc options
+#UseSyslog
+#Color
+#NoProgressBar
+CheckSpace
+#VerbosePkgLists
+ParallelDownloads = 5
+
+# By default, pacman accepts packages signed by keys that its local keyring
+# trusts (see pacman-key and its man page), as well as unsigned packages.
+SigLevel    = DatabaseRequired
+LocalFileSigLevel = Optional
+#RemoteFileSigLevel = Required
+
+#
+# REPOSITORIES
+#   - can be defined here or included from another file
+#   - pacman will search repositories in the order defined here
+#   - local/custom mirrors can be added here or in separate files
+#   - repositories listed first will take precedence when packages
+#     have identical names, regardless of version number
+#
+
+# Include other repositories from a file
+Include = /etc/pacman.d/mirrorlist
+
+[core]
+Include = /etc/pacman.d/mirrorlist
+
+[extra]
+Include = /etc/pacman.d/mirrorlist
+
+[community]
+Include = /etc/pacman.d/mirrorlist
+EOF
+
+# Create mirrorlist
+cat > "$MOUNT_DIR/etc/pacman.d/mirrorlist" << 'EOF'
+# Arch Linux ARM mirrorlist
+
+# Primary mirrors
+Server = https://mirror.archlinuxarm.org/$arch/$repo
+Server = https://uk.mirror.archlinuxarm.org/$arch/$repo
+Server = https://us.mirror.archlinuxarm.org/$arch/$repo
+Server = https://sg.mirror.archlinuxarm.org/$arch/$repo
+EOF
+
+# Initialize pacman keyring
+chroot "$MOUNT_DIR" pacman-key --init
+chroot "$MOUNT_DIR" pacman-key --populate archlinuxarm
 
 # Enable the expansion service
 chroot "$MOUNT_DIR" systemctl enable expand-rootfs.service
@@ -301,13 +391,28 @@ if [ -f /etc/bash.bashrc ]; then
 fi
 EOF
 
+# Configure networking
+print_status "Configuring networking..."
+
+# Enable systemd-networkd
+chroot "$MOUNT_DIR" systemctl enable systemd-networkd
+chroot "$MOUNT_DIR" systemctl enable systemd-resolved
+
+# Create network configuration
+mkdir -p "$MOUNT_DIR/etc/systemd/network"
+cat > "$MOUNT_DIR/etc/systemd/network/20-wired.network" << 'EOF'
+[Match]
+Name=eth0
+
+[Network]
+DHCP=yes
+EOF
+
 # Enable NetworkManager (if available)
-print_status "Configuring services..."
 if chroot "$MOUNT_DIR" systemctl --quiet is-enabled NetworkManager 2>/dev/null; then
     chroot "$MOUNT_DIR" systemctl enable NetworkManager
 else
-    print_warning "NetworkManager not found, skipping service enablement"
-    print_status "User will need to configure networking manually after boot"
+    print_warning "NetworkManager not found, using systemd-networkd"
 fi
 
 # Clean up
