@@ -65,6 +65,23 @@ else
     print_warning "packages.$ARCH not found, using existing packages.x86_64"
 fi
 
+# Ensure our custom mirrorlist is used during the build
+print_status "Setting up custom mirrorlist for build..."
+mkdir -p "$PROFILE_DIR/airootfs/etc/pacman.d"
+if [[ -f "$PROFILE_DIR/airootfs/etc/pacman.d/mirrorlist" ]]; then
+    print_status "Using custom mirrorlist from airootfs"
+else
+    print_warning "Custom mirrorlist not found, creating one..."
+    cat > "$PROFILE_DIR/airootfs/etc/pacman.d/mirrorlist" << 'EOF'
+# Arch Linux mirrorlist for LnOS ISO
+# Hardcoded with reliable mirrors
+
+Server = https://mirror.archlinux.org/core/os/$arch
+Server = https://mirror.archlinux.org/extra/os/$arch
+Server = https://mirror.archlinux.org/community/os/$arch
+EOF
+fi
+
 # Build the ISO
 print_status "Starting ISO build process..."
 if [[ $EUID -eq 0 ]]; then
