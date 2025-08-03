@@ -1,13 +1,17 @@
 #!/bin/bash
 
+# Debug: Log that we're starting
+echo "LnOS autostart script starting at $(date)" >> /tmp/lnos-debug.log
+
 # Prevent multiple instances
 if [[ -f /tmp/lnos-autostart-running ]]; then
-    echo "LnOS autostart already running, exiting..."
+    echo "LnOS autostart already running, exiting..." >> /tmp/lnos-debug.log
     exit 0
 fi
 
 # Mark that we're running
 touch /tmp/lnos-autostart-running
+echo "Created running flag at $(date)" >> /tmp/lnos-debug.log
 
 # Wait for system to fully boot and network to be ready
 echo "Waiting for system to be ready..."

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Debug: Log that customize script is running
+echo "LnOS customize script starting at $(date)" > /tmp/customize-debug.log
+
 # Set root password to 'lnos' for the live environment
 echo 'root:lnos' | chpasswd
 
@@ -60,7 +63,12 @@ fi
 # Make installer executable
 chmod +x /root/LnOS/scripts/LnOS-installer.sh
 
+# Create a marker file to show the customize script completed
+echo "Customize script completed at $(date)" > /tmp/customize-completed
+echo "Customize script completed successfully" >> /tmp/customize-debug.log
+
 # Create a systemd service for auto-starting the installer
+echo "Creating systemd service..." >> /tmp/customize-debug.log
 cat > /etc/systemd/system/lnos-autostart.service << 'EOF'
 [Unit]
 Description=LnOS Auto-start Installer
@@ -84,11 +92,17 @@ WantedBy=multi-user.target
 EOF
 
 # Enable the autostart service
+echo "Enabling systemd service..." >> /tmp/customize-debug.log
 systemctl enable lnos-autostart.service
+echo "Systemd service enabled" >> /tmp/customize-debug.log
 
 # Also keep the bashrc approach as backup
+echo "Creating bashrc backup..." >> /tmp/customize-debug.log
 cat > /root/.bashrc << 'EOF'
 #!/bin/bash
+
+# Debug: Log bashrc execution
+echo "Bashrc executed at $(date)" >> /tmp/bashrc-debug.log
 
 # Source the original bashrc if it exists
 if [ -f /etc/bash.bashrc ]; then
@@ -97,6 +111,7 @@ fi
 
 # Auto-start installer only on tty1 and only once (backup method)
 if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
+    echo "Bashrc: Starting autostart on tty1" >> /tmp/bashrc-debug.log
     # Mark that we've run the autostart
     touch /tmp/lnos-autostart-run
     
@@ -105,5 +120,8 @@ if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
     
     # Run the autostart script
     /usr/local/bin/lnos-autostart.sh
+else
+    echo "Bashrc: Skipping autostart - tty: $(tty), run flag: $([[ -f /tmp/lnos-autostart-run ]] && echo 'exists' || echo 'missing')" >> /tmp/bashrc-debug.log
 fi
 EOF
+echo "Bashrc created" >> /tmp/customize-debug.log
