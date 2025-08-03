@@ -8,8 +8,14 @@ if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
     # Wait a moment for system to settle
     sleep 2
     
-    # Run the autostart script directly
-    if [[ -f /usr/local/bin/lnos-autostart.sh ]]; then
-        /usr/local/bin/lnos-autostart.sh
+    # Run the installer directly
+    if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
+        cd /root/LnOS/scripts
+        chmod +x ./LnOS-installer.sh
+        echo "Starting LnOS installer..."
+        ./LnOS-installer.sh --target=x86_64
+        
+        # Remove the autostart from bashrc after it runs
+        sed -i '/# Simple LnOS Autostart/,/fi$/d' /root/.bashrc
     fi
 fi 
