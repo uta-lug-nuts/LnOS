@@ -96,6 +96,11 @@ echo "Enabling systemd service..." >> /tmp/customize-debug.log
 systemctl enable lnos-autostart.service
 echo "Systemd service enabled" >> /tmp/customize-debug.log
 
+# Enable the boot service as well
+echo "Enabling boot service..." >> /tmp/customize-debug.log
+systemctl enable lnos-boot.service
+echo "Boot service enabled" >> /tmp/customize-debug.log
+
 # Also keep the bashrc approach as backup
 echo "Creating bashrc backup..." >> /tmp/customize-debug.log
 cat > /root/.bashrc << 'EOF'

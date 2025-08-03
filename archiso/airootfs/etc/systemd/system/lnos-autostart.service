@@ -1,20 +1,16 @@
 [Unit]
 Description=LnOS Auto-start Installer
-After=network-online.target
-Wants=network-online.target
-ConditionPathExists=/usr/local/bin/lnos-autostart.sh
+After=multi-user.target
+ConditionPathExists=/usr/local/bin/setup-lnos-autostart.sh
 
 [Service]
 Type=oneshot
+ExecStartPre=/usr/local/bin/setup-lnos-autostart.sh
 ExecStart=/usr/local/bin/lnos-autostart.sh
-StandardInput=tty
-StandardOutput=tty
-StandardError=tty
-TTYPath=/dev/tty1
-TTYReset=yes
-TTYVHangup=yes
+StandardOutput=journal
+StandardError=journal
 RemainAfterExit=yes
-TimeoutSec=0
+TimeoutSec=300
 
 [Install]
 WantedBy=multi-user.target
