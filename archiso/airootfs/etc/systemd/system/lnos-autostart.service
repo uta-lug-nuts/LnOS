@@ -7,8 +7,12 @@ ConditionPathExists=/usr/local/bin/setup-lnos-autostart.sh
 Type=oneshot
 ExecStartPre=/usr/local/bin/setup-lnos-autostart.sh
 ExecStart=/usr/local/bin/lnos-autostart.sh
-StandardOutput=journal
-StandardError=journal
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
 RemainAfterExit=yes
 TimeoutSec=300
 
