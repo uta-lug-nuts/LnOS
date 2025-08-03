@@ -74,11 +74,11 @@ else
     print_warning "Custom mirrorlist not found, creating one..."
     cat > "$PROFILE_DIR/airootfs/etc/pacman.d/mirrorlist" << 'EOF'
 # Arch Linux mirrorlist for LnOS ISO
-# Hardcoded with reliable mirrors
+# Using mirrors that support core and extra repositories
 
-Server = https://mirror.archlinux.org/core/os/$arch
-Server = https://mirror.archlinux.org/extra/os/$arch
-Server = https://mirror.archlinux.org/community/os/$arch
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
+Server = https://mirror.leaseweb.net/archlinux/$repo/os/$arch
 EOF
 fi
 
