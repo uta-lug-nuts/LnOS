@@ -48,12 +48,45 @@ EOF
 # Copy the LnOS installer to root's home directory
 mkdir -p /root/LnOS/scripts
 cp /usr/local/bin/LnOS-installer.sh /root/LnOS/scripts/
-cp -r /usr/share/lnos/pacman_packages /root/LnOS/scripts/
+
+# Copy pacman packages if they exist
+if [[ -d "/usr/share/lnos/pacman_packages" ]]; then
+    cp -r /usr/share/lnos/pacman_packages /root/LnOS/scripts/
+else
+    echo "WARNING: /usr/share/lnos/pacman_packages not found, creating empty directory"
+    mkdir -p /root/LnOS/scripts/pacman_packages
+fi
 
 # Make installer executable
 chmod +x /root/LnOS/scripts/LnOS-installer.sh
 
-# Create a bashrc that auto-starts the installer
+# Create a systemd service for auto-starting the installer
+cat > /etc/systemd/system/lnos-autostart.service << 'EOF'
+[Unit]
+Description=LnOS Auto-start Installer
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/usr/local/bin/lnos-autostart.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/lnos-autostart.sh
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable the autostart service
+systemctl enable lnos-autostart.service
+
+# Also keep the bashrc approach as backup
 cat > /root/.bashrc << 'EOF'
 #!/bin/bash
 
@@ -62,7 +95,7 @@ if [ -f /etc/bash.bashrc ]; then
     source /etc/bash.bashrc
 fi
 
-# Auto-start installer only on tty1 and only once
+# Auto-start installer only on tty1 and only once (backup method)
 if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
     # Mark that we've run the autostart
     touch /tmp/lnos-autostart-run

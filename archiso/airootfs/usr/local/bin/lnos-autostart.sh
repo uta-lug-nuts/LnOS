@@ -85,10 +85,22 @@ echo ""
 echo ""
 
 echo "Starting LnOS installer..."
+
+# Check if the installer script exists
+if [[ ! -f "/root/LnOS/scripts/LnOS-installer.sh" ]]; then
+    echo "ERROR: LnOS installer not found at /root/LnOS/scripts/LnOS-installer.sh"
+    echo "Available files in /root/LnOS/scripts/:"
+    ls -la /root/LnOS/scripts/ 2>/dev/null || echo "Directory not found"
+    echo ""
+    echo "Dropping to shell..."
+    exec /bin/bash
+fi
+
 cd /root/LnOS/scripts
 
 # Clean up the running flag
 rm -f /tmp/lnos-autostart-running
 
 # Execute the installer
+echo "Executing: ./LnOS-installer.sh --target=$TARGET"
 exec ./LnOS-installer.sh --target=$TARGET
