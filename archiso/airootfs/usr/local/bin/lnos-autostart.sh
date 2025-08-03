@@ -30,6 +30,28 @@ if ! pacman -Sy --noconfirm >/dev/null 2>&1; then
     echo "WARNING: Pacman repository test failed, trying to fix..."
     pacman-key --init
     pacman-key --populate archlinux
+    
+    # Try to update mirrorlist with more reliable mirrors
+    echo "Updating mirrorlist with reliable mirrors..."
+    cat > /etc/pacman.d/mirrorlist << 'EOF'
+# Arch Linux mirrorlist for LnOS ISO
+# Generated with reliable mirrors that support all repositories
+
+## Global mirrors
+Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
+Server = https://mirror.umd.edu/archlinux/$repo/os/$arch
+Server = https://mirror.csclub.uwaterloo.ca/archlinux/$repo/os/$arch
+Server = https://mirror.rise.ph/archlinux/$repo/os/$arch
+
+## US mirrors
+Server = https://mirror.lty.me/archlinux/$repo/os/$arch
+Server = https://mirror.xtom.com.hk/archlinux/$repo/os/$arch
+Server = https://mirror.selfnet.de/archlinux/$repo/os/$arch
+
+## Fallback to official
+Server = https://archlinux.mirror.constant.com/$repo/os/$arch
+EOF
+    
     pacman -Syy --noconfirm
 fi
 

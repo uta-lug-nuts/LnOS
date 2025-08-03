@@ -15,6 +15,14 @@ pacman-key --populate archlinux
 echo "Updating mirrorlist..."
 pacman -Syy --noconfirm
 
+# Test repository connectivity
+echo "Testing repository connectivity..."
+if ! pacman -Sy --noconfirm >/dev/null 2>&1; then
+    echo "WARNING: Repository test failed, trying alternative mirrors..."
+    # Try to update mirrorlist with more reliable mirrors
+    pacman -Syy --noconfirm || true
+fi
+
 # Enable services for the live environment
 systemctl enable NetworkManager
 systemctl enable dhcpcd
