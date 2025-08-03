@@ -49,12 +49,9 @@ EOF
     pacman -Syy --noconfirm
 fi
 
-# Skip if not on tty1
-if [[ $(tty) != "/dev/tty1" ]]; then
-    echo "Not on tty1, skipping autostart" >> /tmp/lnos-debug.log
-    rm -f /tmp/lnos-autostart-running
-    exit 0
-fi
+# Debug TTY information
+echo "Current TTY: $(tty)" >> /tmp/lnos-debug.log
+echo "Continuing with autostart..." >> /tmp/lnos-debug.log
 
 # Clear screen and show welcome
 clear
@@ -98,7 +95,15 @@ if [[ ! -f "/root/LnOS/scripts/LnOS-installer.sh" ]]; then
     ls -la /root/LnOS/scripts/ 2>/dev/null || echo "Directory not found"
     echo ""
     echo "Dropping to shell..."
+    rm -f /tmp/lnos-autostart-running
     exec /bin/bash
+fi
+
+# Check if installer is executable
+if [[ ! -x "/root/LnOS/scripts/LnOS-installer.sh" ]]; then
+    echo "ERROR: LnOS installer is not executable"
+    echo "Making it executable..."
+    chmod +x /root/LnOS/scripts/LnOS-installer.sh
 fi
 
 cd /root/LnOS/scripts
@@ -106,6 +111,17 @@ cd /root/LnOS/scripts
 # Clean up the running flag
 rm -f /tmp/lnos-autostart-running
 
-# Execute the installer
+# Execute the installer with error handling
 echo "Executing: ./LnOS-installer.sh --target=$TARGET"
-exec ./LnOS-installer.sh --target=$TARGET
+echo "Current directory: $(pwd)"
+echo "Installer exists: $([[ -f "./LnOS-installer.sh" ]] && echo 'yes' || echo 'no')"
+echo "Installer executable: $([[ -x "./LnOS-installer.sh" ]] && echo 'yes' || echo 'no')"
+
+# Try to run the installer, but if it fails, drop to shell
+if ! ./LnOS-installer.sh --target=$TARGET; then
+    echo ""
+    echo "ERROR: LnOS installer failed to start or crashed"
+    echo "Dropping to shell for manual debugging..."
+    echo ""
+    exec /bin/bash
+fi
