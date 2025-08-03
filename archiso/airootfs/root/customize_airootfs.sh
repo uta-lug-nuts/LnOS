@@ -91,15 +91,11 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF
 
-# Enable the autostart service
-echo "Enabling systemd service..." >> /tmp/customize-debug.log
-systemctl enable lnos-autostart.service
-echo "Systemd service enabled" >> /tmp/customize-debug.log
-
-# Enable the boot service as well
-echo "Enabling boot service..." >> /tmp/customize-debug.log
-systemctl enable lnos-boot.service
-echo "Boot service enabled" >> /tmp/customize-debug.log
+# Disable systemd services since they don't work well with terminal output
+echo "Disabling systemd services for terminal output..." >> /tmp/customize-debug.log
+systemctl disable lnos-autostart.service 2>/dev/null || true
+systemctl disable lnos-boot.service 2>/dev/null || true
+echo "Systemd services disabled, using bashrc method instead" >> /tmp/customize-debug.log
 
 # Also keep the bashrc approach as backup
 echo "Creating bashrc backup..." >> /tmp/customize-debug.log

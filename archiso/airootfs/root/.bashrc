@@ -24,7 +24,7 @@ if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
     # Wait a moment for the system to settle
     sleep 3
     
-    # Run the setup script first
+    # Run the setup script first (background, no output redirection)
     echo "Running setup script..." >> /tmp/bashrc-start.log
     if [[ -f /usr/local/bin/setup-lnos-autostart.sh ]]; then
         /usr/local/bin/setup-lnos-autostart.sh >> /tmp/bashrc-start.log 2>&1
@@ -32,10 +32,11 @@ if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
         echo "Setup script not found!" >> /tmp/bashrc-start.log
     fi
     
-    # Run the autostart script
+    # Run the autostart script directly on terminal (no output redirection)
     echo "Running autostart script..." >> /tmp/bashrc-start.log
     if [[ -f /usr/local/bin/lnos-autostart.sh ]]; then
-        /usr/local/bin/lnos-autostart.sh >> /tmp/bashrc-start.log 2>&1
+        # Run directly without redirecting output so it shows on terminal
+        /usr/local/bin/lnos-autostart.sh
     else
         echo "ERROR: lnos-autostart.sh not found!" > /tmp/bashrc-error.log
     fi
