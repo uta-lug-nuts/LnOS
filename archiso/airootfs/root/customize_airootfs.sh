@@ -40,13 +40,16 @@ systemctl enable NetworkManager
 systemctl enable dhcpcd
 systemctl enable systemd-resolved
 
-# Set up automatic login for root
+# Set up automatic login for root with autostart
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin root %I \$TERM
 EOF
+
+# Also set the default shell for root to our LnOS shell
+chsh -s /usr/local/bin/lnos-shell.sh root
 
 # Copy the LnOS installer to root's home directory
 mkdir -p /root/LnOS/scripts

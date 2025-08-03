@@ -22,6 +22,7 @@ file_permissions=(
   ["/etc/bash.bashrc"]="0:0:644"
   ["/usr/local/bin/LnOS-installer.sh"]="0:0:755"
   ["/usr/local/bin/lnos-autostart.sh"]="0:0:755"
+  ["/usr/local/bin/lnos-shell.sh"]="0:0:755"
   ["/usr/local/bin/setup-lnos-autostart.sh"]="0:0:755"
   ["/usr/local/bin/lnos-boot-start.sh"]="0:0:755"
   ["/etc/systemd/system/lnos-autostart.service"]="0:0:644"
