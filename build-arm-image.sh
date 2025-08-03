@@ -380,6 +380,12 @@ if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
     cd /root/LnOS/scripts
     chmod +x ./LnOS-installer.sh
     echo "Starting LnOS installer..."
+    
+    # Remove autostart immediately when installer starts
+    rm -f /usr/local/bin/lnos-shell.sh
+    chsh -s /bin/bash root
+    
+    # Run the installer
     ./LnOS-installer.sh --target=aarch64
 else
     echo "ERROR: LnOS installer not found!"
@@ -393,15 +399,15 @@ else
     echo "  systemctl enable systemd-networkd"
     echo "  systemctl start systemd-networkd"
     echo "  echo '[Match]\nName=*\n[Network]\nDHCP=yes' > /etc/systemd/network/20-wired.network"
+    
+    # Remove autostart even if installer not found
+    rm -f /usr/local/bin/lnos-shell.sh
+    chsh -s /bin/bash root
 fi
 
 echo ""
 echo "LnOS installer completed. Dropping to shell..."
 echo ""
-
-# Remove this shell script and set root's shell back to bash
-rm -f /usr/local/bin/lnos-shell.sh
-chsh -s /bin/bash root
 
 # Drop to bash shell
 exec /bin/bash
