@@ -3,9 +3,14 @@
 # Set root password to 'lnos' for the live environment
 echo 'root:lnos' | chpasswd
 
+# Set timezone to UTC to prevent prompts
+ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+
 # Enable services for the live environment
 systemctl enable NetworkManager
 systemctl enable dhcpcd
+systemctl enable systemd-resolved
+systemctl enable lnos-autostart.service
 
 # Set up automatic login for root
 mkdir -p /etc/systemd/system/getty@tty1.service.d
