@@ -10,7 +10,6 @@ ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 systemctl enable NetworkManager
 systemctl enable dhcpcd
 systemctl enable systemd-resolved
-systemctl enable lnos-autostart.service
 
 # Set up automatic login for root
 mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -28,7 +27,7 @@ cp -r /usr/share/lnos/pacman_packages /root/LnOS/scripts/
 # Make installer executable
 chmod +x /root/LnOS/scripts/LnOS-installer.sh
 
-# Create a simple bashrc that shows manual instructions if needed
+# Create a bashrc that auto-starts the installer
 cat > /root/.bashrc << 'EOF'
 #!/bin/bash
 
@@ -37,24 +36,15 @@ if [ -f /etc/bash.bashrc ]; then
     source /etc/bash.bashrc
 fi
 
-# Show manual instructions if someone drops to shell
-if [[ $(tty) == "/dev/tty1" ]]; then
-    # Auto-detect architecture for manual instructions
-    ARCH=$(uname -m)
-    if [[ "$ARCH" == "x86_64" ]]; then
-        TARGET="x86_64"
-    elif [[ "$ARCH" == "aarch64" ]]; then
-        TARGET="aarch64" 
-    else
-        TARGET="x86_64"  # fallback
-    fi
+# Auto-start installer only on tty1 and only once
+if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
+    # Mark that we've run the autostart
+    touch /tmp/lnos-autostart-run
     
-    echo ""
-    echo "=========================================="
-    echo "Manual installer instructions:"
-    echo "  cd /root/LnOS/scripts && ./LnOS-installer.sh --target=$TARGET"
-    echo ""
-    echo "For help: ./LnOS-installer.sh --help"
-    echo "=========================================="
+    # Wait a moment for the system to settle
+    sleep 2
+    
+    # Run the autostart script
+    /usr/local/bin/lnos-autostart.sh
 fi
 EOF

@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Prevent multiple instances
+if [[ -f /tmp/lnos-autostart-running ]]; then
+    echo "LnOS autostart already running, exiting..."
+    exit 0
+fi
+
+# Mark that we're running
+touch /tmp/lnos-autostart-running
+
 # Wait for system to fully boot and network to be ready
 echo "Waiting for system to be ready..."
 sleep 5
@@ -17,6 +26,7 @@ done
 
 # Skip if not on tty1
 if [[ $(tty) != "/dev/tty1" ]]; then
+    rm -f /tmp/lnos-autostart-running
     exit 0
 fi
 
@@ -55,6 +65,9 @@ echo ""
 
 echo "Starting LnOS installer..."
 cd /root/LnOS/scripts
+
+# Clean up the running flag
+rm -f /tmp/lnos-autostart-running
 
 # Execute the installer
 exec ./LnOS-installer.sh --target=$TARGET
