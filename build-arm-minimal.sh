@@ -176,51 +176,76 @@ EOF
 
 # Note: Using shell-based autostart instead of systemd service
 
-# Create a simple bashrc with autostart
+# Create the LnOS shell script for minimal ARM
+cat > "$MOUNT_DIR/usr/local/bin/lnos-shell.sh" << 'EOF'
+#!/bin/bash
+
+# LnOS Shell for Minimal ARM - runs installer once then removes itself
+
+echo "=========================================="
+echo "      Welcome to LnOS Minimal ARM64"
+echo "=========================================="
+echo ""
+
+# Wait a moment for system to settle
+sleep 2
+
+# Enable and start network services
+systemctl enable systemd-networkd
+systemctl enable systemd-resolved
+systemctl start systemd-networkd
+systemctl start systemd-resolved
+
+echo "Network services started."
+echo ""
+
+# Check if installer exists and run it
+if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
+    cd /root/LnOS/scripts
+    chmod +x ./LnOS-installer.sh
+    echo "Starting LnOS installer..."
+    
+    # Remove autostart immediately when installer starts
+    rm -f /usr/local/bin/lnos-shell.sh
+    chsh -s /bin/bash root
+    
+    # Run the installer
+    ./LnOS-installer.sh --target=aarch64
+else
+    echo "ERROR: LnOS installer not found!"
+    echo "This is a minimal ARM image for LnOS installation."
+    echo ""
+    echo "To install LnOS, you need to:"
+    echo "1. Download the full LnOS installer"
+    echo "2. Run the installation process"
+    echo ""
+    echo "For more information, visit: https://github.com/uta-lug-nuts/LnOS"
+    
+    # Remove autostart even if installer not found
+    rm -f /usr/local/bin/lnos-shell.sh
+    chsh -s /bin/bash root
+fi
+
+echo ""
+echo "LnOS installer completed. Dropping to shell..."
+echo ""
+
+# Drop to bash shell
+exec /bin/bash
+EOF
+
+chmod +x "$MOUNT_DIR/usr/local/bin/lnos-shell.sh"
+
+# Set the custom shell as root's default shell
+chroot "$MOUNT_DIR" chsh -s /usr/local/bin/lnos-shell.sh root
+
+# Create a simple bashrc as backup
 cat > "$MOUNT_DIR/root/.bashrc" << 'EOF'
 #!/bin/bash
 
 # Source original bashrc if it exists
 if [ -f /etc/bash.bashrc ]; then
     source /etc/bash.bashrc
-fi
-
-# Simple LnOS Autostart - run once on tty1
-if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
-    # Mark that we've run
-    touch /tmp/lnos-autostart-run
-    
-    # Remove autostart from bashrc immediately
-    sed -i '/# Simple LnOS Autostart/,/fi$/d' /root/.bashrc
-    
-    # Wait a moment for system to settle
-    sleep 2
-    
-    # Enable and start network services
-    systemctl enable systemd-networkd
-    systemctl enable systemd-resolved
-    systemctl start systemd-networkd
-    systemctl start systemd-resolved
-    
-    echo "Network services started."
-    echo ""
-    
-    # Run the installer directly
-    if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
-        cd /root/LnOS/scripts
-        chmod +x ./LnOS-installer.sh
-        echo "Starting LnOS installer..."
-        ./LnOS-installer.sh --target=aarch64
-    else
-        echo "ERROR: Installer not found!"
-        echo "This is a minimal ARM image for LnOS installation."
-        echo ""
-        echo "To install LnOS, you need to:"
-        echo "1. Download the full LnOS installer"
-        echo "2. Run the installation process"
-        echo ""
-        echo "For more information, visit: https://github.com/uta-lug-nuts/LnOS"
-    fi
 fi
 EOF
 

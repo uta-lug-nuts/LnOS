@@ -361,45 +361,70 @@ chroot "$MOUNT_DIR" pacman-key --populate archlinuxarm
 # Enable the expansion service
 chroot "$MOUNT_DIR" systemctl enable expand-rootfs.service
 
-# Create a simple bashrc with autostart
+# Create the LnOS shell script for ARM
+cat > "$MOUNT_DIR/usr/local/bin/lnos-shell.sh" << 'EOF'
+#!/bin/bash
+
+# LnOS Shell for ARM - runs installer once then removes itself
+
+echo "=========================================="
+echo "      Welcome to LnOS ARM64 Environment"
+echo "=========================================="
+echo ""
+
+# Wait a moment for system to settle
+sleep 2
+
+# Check if installer exists and run it
+if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
+    cd /root/LnOS/scripts
+    chmod +x ./LnOS-installer.sh
+    echo "Starting LnOS installer..."
+    
+    # Remove autostart immediately when installer starts
+    rm -f /usr/local/bin/lnos-shell.sh
+    chsh -s /bin/bash root
+    
+    # Run the installer
+    ./LnOS-installer.sh --target=aarch64
+else
+    echo "ERROR: LnOS installer not found!"
+    echo "Available files in /root/LnOS/scripts/:"
+    ls -la /root/LnOS/scripts/ 2>/dev/null || echo "Directory not found"
+    echo ""
+    echo "To manually expand root filesystem (if needed):"
+    echo "  sudo /root/LnOS/scripts/expand-rootfs.sh"
+    echo ""
+    echo "Network configuration:"
+    echo "  systemctl enable systemd-networkd"
+    echo "  systemctl start systemd-networkd"
+    echo "  echo '[Match]\nName=*\n[Network]\nDHCP=yes' > /etc/systemd/network/20-wired.network"
+    
+    # Remove autostart even if installer not found
+    rm -f /usr/local/bin/lnos-shell.sh
+    chsh -s /bin/bash root
+fi
+
+echo ""
+echo "LnOS installer completed. Dropping to shell..."
+echo ""
+
+# Drop to bash shell
+exec /bin/bash
+EOF
+
+chmod +x "$MOUNT_DIR/usr/local/bin/lnos-shell.sh"
+
+# Set the custom shell as root's default shell
+chroot "$MOUNT_DIR" chsh -s /usr/local/bin/lnos-shell.sh root
+
+# Create a simple bashrc as backup
 cat > "$MOUNT_DIR/root/.bashrc" << 'EOF'
 #!/bin/bash
 
 # Source original bashrc if it exists
 if [ -f /etc/bash.bashrc ]; then
     source /etc/bash.bashrc
-fi
-
-# Simple LnOS Autostart - run once on tty1
-if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
-    # Mark that we've run
-    touch /tmp/lnos-autostart-run
-    
-    # Remove autostart from bashrc immediately
-    sed -i '/# Simple LnOS Autostart/,/fi$/d' /root/.bashrc
-    
-    # Wait a moment for system to settle
-    sleep 2
-    
-    # Run the installer directly
-    if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
-        cd /root/LnOS/scripts
-        chmod +x ./LnOS-installer.sh
-        echo "Starting LnOS installer..."
-        ./LnOS-installer.sh --target=aarch64
-    else
-        echo "ERROR: Installer not found!"
-        echo "Available files in /root/LnOS/scripts/:"
-        ls -la /root/LnOS/scripts/ 2>/dev/null || echo "Directory not found"
-        echo ""
-        echo "To manually expand root filesystem (if needed):"
-        echo "  sudo /root/LnOS/scripts/expand-rootfs.sh"
-        echo ""
-        echo "Network configuration:"
-        echo "  systemctl enable systemd-networkd"
-        echo "  systemctl start systemd-networkd"
-        echo "  echo '[Match]\nName=*\n[Network]\nDHCP=yes' > /etc/systemd/network/20-wired.network"
-    fi
 fi
 EOF
 
