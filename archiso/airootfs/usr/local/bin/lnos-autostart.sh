@@ -31,20 +31,18 @@ if ! pacman -Sy --noconfirm >/dev/null 2>&1; then
     pacman-key --init
     pacman-key --populate archlinux
     
-    # Try to refresh package databases
-    echo "Refreshing package databases..."
-    pacman -Syy --noconfirm
-    
-    # If still failing, try with a simple mirrorlist
-    if ! pacman -Sy --noconfirm >/dev/null 2>&1; then
-        echo "Creating simple mirrorlist with official mirrors..."
-        cat > /etc/pacman.d/mirrorlist << 'EOF'
-# Simple mirrorlist with official mirrors
-Server = https://mirror.archlinux.org/$repo/os/$arch
-Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+    # Use our hardcoded mirrorlist
+    echo "Using hardcoded mirrorlist..."
+    cat > /etc/pacman.d/mirrorlist << 'EOF'
+# Arch Linux mirrorlist for LnOS ISO
+# Hardcoded with reliable mirrors
+
+Server = https://mirror.archlinux.org/core/os/$arch
+Server = https://mirror.archlinux.org/extra/os/$arch
+Server = https://mirror.archlinux.org/community/os/$arch
 EOF
-        pacman -Syy --noconfirm
-    fi
+    
+    pacman -Syy --noconfirm
 fi
 
 # Skip if not on tty1

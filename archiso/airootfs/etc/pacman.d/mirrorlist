@@ -1,0 +1,6 @@
+# Arch Linux mirrorlist for LnOS ISO
+# Hardcoded with reliable mirrors
+
+Server = https://mirror.archlinux.org/core/os/$arch
+Server = https://mirror.archlinux.org/extra/os/$arch
+Server = https://mirror.archlinux.org/community/os/$arch 
