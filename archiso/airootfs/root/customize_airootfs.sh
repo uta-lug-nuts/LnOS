@@ -11,16 +11,14 @@ echo "Configuring pacman repositories..."
 pacman-key --init
 pacman-key --populate archlinux
 
-# Update mirrorlist to ensure it's current
-echo "Updating mirrorlist..."
+# Update package databases
+echo "Updating package databases..."
 pacman -Syy --noconfirm
 
 # Test repository connectivity
 echo "Testing repository connectivity..."
 if ! pacman -Sy --noconfirm >/dev/null 2>&1; then
-    echo "WARNING: Repository test failed, trying alternative mirrors..."
-    # Try to update mirrorlist with more reliable mirrors
-    pacman -Syy --noconfirm || true
+    echo "WARNING: Repository test failed, will retry during runtime..."
 fi
 
 # Enable services for the live environment
