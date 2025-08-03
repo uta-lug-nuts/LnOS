@@ -49,7 +49,7 @@ ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin root %I \$TERM
 EOF
 
 # Also set the default shell for root to our LnOS shell
-chsh -s /bin/bash root
+chsh -s /usr/local/bin/lnos-shell.sh root
 
 # Copy the LnOS installer to root's home directory
 mkdir -p /root/LnOS/scripts

@@ -2,7 +2,7 @@
 
 # LnOS Shell - runs installer once then drops to bash
 
-# Check if we've already run the installer (use a more permanent location)
+# Check if we've already run the installer
 if [[ -f /root/.lnos-installer-completed ]]; then
     # Already ran, just drop to bash
     exec /bin/bash
@@ -23,7 +23,7 @@ if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
     echo "Starting LnOS installer..."
     ./LnOS-installer.sh --target=x86_64
     
-    # Mark that installer has completed (in root's home directory)
+    # Mark that installer has completed
     touch /root/.lnos-installer-completed
 else
     echo "ERROR: LnOS installer not found!"
