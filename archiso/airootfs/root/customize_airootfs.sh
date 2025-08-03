@@ -11,6 +11,17 @@ echo "Configuring pacman repositories..."
 pacman-key --init
 pacman-key --populate archlinux
 
+# Force replace the mirrorlist with our reliable one
+echo "Replacing mirrorlist with reliable mirrors..."
+cat > /etc/pacman.d/mirrorlist << 'EOF'
+# Arch Linux mirrorlist for LnOS ISO
+# Using mirrors that support core and extra repositories
+
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
+Server = https://mirror.leaseweb.net/archlinux/$repo/os/$arch
+EOF
+
 # Update package databases
 echo "Updating package databases..."
 pacman -Syy --noconfirm
