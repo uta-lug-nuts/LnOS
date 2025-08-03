@@ -17,6 +17,7 @@ airootfs_image_type="squashfs"
 airootfs_image_tool_options=('-comp' 'xz' '-Xdict-size' '75%' '-b' '1M')
 file_permissions=(
   ["/root"]="0:0:750"
+  ["/root/.bashrc"]="0:0:644"
   ["/usr/local/bin/LnOS-installer.sh"]="0:0:755"
   ["/usr/local/bin/lnos-autostart.sh"]="0:0:755"
   ["/usr/local/bin/setup-lnos-autostart.sh"]="0:0:755"
