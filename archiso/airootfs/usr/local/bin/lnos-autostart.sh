@@ -24,6 +24,15 @@ for i in {1..30}; do
     sleep 2
 done
 
+# Test pacman repositories
+echo "Testing pacman repositories..."
+if ! pacman -Sy --noconfirm >/dev/null 2>&1; then
+    echo "WARNING: Pacman repository test failed, trying to fix..."
+    pacman-key --init
+    pacman-key --populate archlinux
+    pacman -Syy --noconfirm
+fi
+
 # Skip if not on tty1
 if [[ $(tty) != "/dev/tty1" ]]; then
     rm -f /tmp/lnos-autostart-running

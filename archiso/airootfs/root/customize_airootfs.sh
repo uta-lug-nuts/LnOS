@@ -6,6 +6,15 @@ echo 'root:lnos' | chpasswd
 # Set timezone to UTC to prevent prompts
 ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 
+# Configure pacman repositories and keyring
+echo "Configuring pacman repositories..."
+pacman-key --init
+pacman-key --populate archlinux
+
+# Update mirrorlist to ensure it's current
+echo "Updating mirrorlist..."
+pacman -Syy --noconfirm
+
 # Enable services for the live environment
 systemctl enable NetworkManager
 systemctl enable dhcpcd
