@@ -253,6 +253,61 @@ EOF
         ;;
 esac
 
+# Configure pacman repositories for minimal image
+print_status "Configuring pacman repositories..."
+mkdir -p "$MOUNT_DIR/etc/pacman.d"
+
+# Create pacman.conf
+cat > "$MOUNT_DIR/etc/pacman.conf" << 'EOF'
+#
+# /etc/pacman.conf
+#
+# See the pacman.conf(5) manpage for option and repository directives
+
+#
+# GENERAL OPTIONS
+#
+[options]
+HoldPkg     = pacman glibc
+Architecture = aarch64
+
+# Misc options
+CheckSpace
+ParallelDownloads = 5
+
+# By default, pacman accepts packages signed by keys that its local keyring
+# trusts (see pacman-key and its man page), as well as unsigned packages.
+SigLevel    = DatabaseRequired
+LocalFileSigLevel = Optional
+
+#
+# REPOSITORIES
+#
+[core]
+Include = /etc/pacman.d/mirrorlist
+
+[extra]
+Include = /etc/pacman.d/mirrorlist
+
+[community]
+Include = /etc/pacman.d/mirrorlist
+EOF
+
+# Create mirrorlist
+cat > "$MOUNT_DIR/etc/pacman.d/mirrorlist" << 'EOF'
+# Arch Linux ARM mirrorlist
+
+# Primary mirrors
+Server = https://mirror.archlinuxarm.org/$arch/$repo
+Server = https://uk.mirror.archlinuxarm.org/$arch/$repo
+Server = https://us.mirror.archlinuxarm.org/$arch/$repo
+Server = https://sg.mirror.archlinuxarm.org/$arch/$repo
+EOF
+
+# Initialize pacman keyring
+chroot "$MOUNT_DIR" pacman-key --init
+chroot "$MOUNT_DIR" pacman-key --populate archlinuxarm
+
 # Copy LnOS installer scripts
 print_status "Installing LnOS components..."
 mkdir -p "$MOUNT_DIR/root/LnOS/scripts"
