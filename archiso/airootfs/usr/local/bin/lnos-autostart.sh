@@ -51,6 +51,7 @@ fi
 
 # Skip if not on tty1
 if [[ $(tty) != "/dev/tty1" ]]; then
+    echo "Not on tty1, skipping autostart" >> /tmp/lnos-debug.log
     rm -f /tmp/lnos-autostart-running
     exit 0
 fi
