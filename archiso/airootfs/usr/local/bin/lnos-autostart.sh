@@ -1,33 +1,15 @@
 #!/bin/bash
 
-# Wait for system to fully boot and network to be ready
-echo "Waiting for system to be ready..."
-sleep 5
+# Simple LnOS Autostart Script
+# This runs directly and shows output on terminal
 
-# Wait for network connectivity
-echo "Checking network connectivity..."
-for i in {1..30}; do
-    if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
-        echo "Network is ready!"
-        break
-    fi
-    echo "Waiting for network... ($i/30)"
-    sleep 2
-done
-
-# Skip if not on tty1
-if [[ $(tty) != "/dev/tty1" ]]; then
-    exit 0
-fi
-
-# Clear screen and show welcome
-clear
 echo "=========================================="
 echo "      Welcome to LnOS Live Environment"
 echo "=========================================="
 echo ""
-echo "Network should be automatically configured."
-echo ""
+
+# Wait a moment for system to settle
+sleep 2
 
 # Auto-detect architecture
 ARCH=$(uname -m)
@@ -41,20 +23,23 @@ fi
 
 echo "Detected architecture: $ARCH (target: $TARGET)"
 echo ""
-echo "Starting LnOS installer automatically in 5 seconds..."
-echo "Press Ctrl+C to cancel and drop to shell."
-echo ""
 
-# 5 second countdown
-for i in {5..1}; do
-    echo -n "$i... "
-    sleep 1
-done
-echo ""
-echo ""
+# Check if installer exists
+if [[ ! -f "/root/LnOS/scripts/LnOS-installer.sh" ]]; then
+    echo "ERROR: LnOS installer not found!"
+    echo "Available files in /root/LnOS/scripts/:"
+    ls -la /root/LnOS/scripts/ 2>/dev/null || echo "Directory not found"
+    echo ""
+    echo "Dropping to shell..."
+    exec /bin/bash
+fi
+
+# Make sure installer is executable
+chmod +x /root/LnOS/scripts/LnOS-installer.sh
 
 echo "Starting LnOS installer..."
-cd /root/LnOS/scripts
+echo ""
 
-# Execute the installer
+# Change to installer directory and run
+cd /root/LnOS/scripts
 exec ./LnOS-installer.sh --target=$TARGET

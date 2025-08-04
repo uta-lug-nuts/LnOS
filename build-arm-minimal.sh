@@ -174,50 +174,80 @@ nameserver 8.8.8.8
 nameserver 8.8.4.4
 EOF
 
-# Create basic systemd configuration
-mkdir -p "$MOUNT_DIR/etc/systemd/system"
-cat > "$MOUNT_DIR/etc/systemd/system/lnos-installer.service" << 'EOF'
-[Unit]
-Description=LnOS Installer
-After=network-online.target
+# Note: Using shell-based autostart instead of systemd service
 
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/lnos-autostart.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Create autostart script
-mkdir -p "$MOUNT_DIR/usr/local/bin"
-cat > "$MOUNT_DIR/usr/local/bin/lnos-autostart.sh" << 'EOF'
+# Create the LnOS shell script for minimal ARM
+cat > "$MOUNT_DIR/usr/local/bin/lnos-shell.sh" << 'EOF'
 #!/bin/bash
 
-echo "=== LnOS Minimal ARM Image ==="
-echo "This is a minimal ARM image for LnOS installation."
-echo ""
-echo "To install LnOS, you need to:"
-echo "1. Download the full LnOS installer"
-echo "2. Run the installation process"
-echo ""
-echo "For more information, visit: https://github.com/uta-lug-nuts/LnOS"
+# LnOS Shell for Minimal ARM - runs installer once then removes itself
+
+echo "=========================================="
+echo "      Welcome to LnOS Minimal ARM64"
+echo "=========================================="
 echo ""
 
-# Enable network
+# Wait a moment for system to settle
+sleep 2
+
+# Enable and start network services
 systemctl enable systemd-networkd
 systemctl enable systemd-resolved
-
-# Start network services
 systemctl start systemd-networkd
 systemctl start systemd-resolved
 
 echo "Network services started."
-echo "System ready for LnOS installation."
+echo ""
+
+# Check if installer exists and run it
+if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
+    cd /root/LnOS/scripts
+    chmod +x ./LnOS-installer.sh
+    echo "Starting LnOS installer..."
+    
+    # Remove autostart immediately when installer starts
+    rm -f /usr/local/bin/lnos-shell.sh
+    chsh -s /bin/bash root
+    
+    # Run the installer
+    ./LnOS-installer.sh --target=aarch64
+else
+    echo "ERROR: LnOS installer not found!"
+    echo "This is a minimal ARM image for LnOS installation."
+    echo ""
+    echo "To install LnOS, you need to:"
+    echo "1. Download the full LnOS installer"
+    echo "2. Run the installation process"
+    echo ""
+    echo "For more information, visit: https://github.com/uta-lug-nuts/LnOS"
+    
+    # Remove autostart even if installer not found
+    rm -f /usr/local/bin/lnos-shell.sh
+    chsh -s /bin/bash root
+fi
+
+echo ""
+echo "LnOS installer completed. Dropping to shell..."
+echo ""
+
+# Drop to bash shell
+exec /bin/bash
 EOF
 
-chmod +x "$MOUNT_DIR/usr/local/bin/lnos-autostart.sh"
+chmod +x "$MOUNT_DIR/usr/local/bin/lnos-shell.sh"
+
+# Set the custom shell as root's default shell
+chroot "$MOUNT_DIR" chsh -s /usr/local/bin/lnos-shell.sh root
+
+# Create a simple bashrc as backup
+cat > "$MOUNT_DIR/root/.bashrc" << 'EOF'
+#!/bin/bash
+
+# Source original bashrc if it exists
+if [ -f /etc/bash.bashrc ]; then
+    source /etc/bash.bashrc
+fi
+EOF
 
 # Create basic initramfs
 print_status "Creating minimal initramfs..."
@@ -252,6 +282,61 @@ console=ttyS0,115200 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.
 EOF
         ;;
 esac
+
+# Configure pacman repositories for minimal image
+print_status "Configuring pacman repositories..."
+mkdir -p "$MOUNT_DIR/etc/pacman.d"
+
+# Create pacman.conf
+cat > "$MOUNT_DIR/etc/pacman.conf" << 'EOF'
+#
+# /etc/pacman.conf
+#
+# See the pacman.conf(5) manpage for option and repository directives
+
+#
+# GENERAL OPTIONS
+#
+[options]
+HoldPkg     = pacman glibc
+Architecture = aarch64
+
+# Misc options
+CheckSpace
+ParallelDownloads = 5
+
+# By default, pacman accepts packages signed by keys that its local keyring
+# trusts (see pacman-key and its man page), as well as unsigned packages.
+SigLevel    = DatabaseRequired
+LocalFileSigLevel = Optional
+
+#
+# REPOSITORIES
+#
+[core]
+Include = /etc/pacman.d/mirrorlist
+
+[extra]
+Include = /etc/pacman.d/mirrorlist
+
+[community]
+Include = /etc/pacman.d/mirrorlist
+EOF
+
+# Create mirrorlist
+cat > "$MOUNT_DIR/etc/pacman.d/mirrorlist" << 'EOF'
+# Arch Linux ARM mirrorlist
+
+# Primary mirrors
+Server = https://mirror.archlinuxarm.org/$arch/$repo
+Server = https://uk.mirror.archlinuxarm.org/$arch/$repo
+Server = https://us.mirror.archlinuxarm.org/$arch/$repo
+Server = https://sg.mirror.archlinuxarm.org/$arch/$repo
+EOF
+
+# Initialize pacman keyring
+chroot "$MOUNT_DIR" pacman-key --init
+chroot "$MOUNT_DIR" pacman-key --populate archlinuxarm
 
 # Copy LnOS installer scripts
 print_status "Installing LnOS components..."

@@ -1,0 +1,15 @@
+[Unit]
+Description=LnOS Boot Autostart
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/lnos-boot-start.sh
+StandardOutput=journal
+StandardError=journal
+RemainAfterExit=yes
+TimeoutSec=300
+
+[Install]
+WantedBy=multi-user.target 
