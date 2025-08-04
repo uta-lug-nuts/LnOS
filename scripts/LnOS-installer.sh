@@ -26,6 +26,20 @@
 
 set -e
 
+# Make user connect to internet
+
+echo "Please connect to the internet"
+
+while true; do
+    if nmcli general status | grep -q "connected"; then
+        echo "user connected to internet"
+        break
+    else
+        nmtui
+    fi
+done
+
+
 if ! command -v gum &> /dev/null; then
     echo "Installing gum..."
     pacman -Sy --noconfirm gum
