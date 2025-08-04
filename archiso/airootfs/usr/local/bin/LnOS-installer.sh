@@ -365,6 +365,9 @@ install_x86_64()
     fi
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
+    # Remove autologin configuration from installed system
+    rm -f /mnt/etc/systemd/system/getty@tty1.service.d/autologin.conf
+
     # Unmount and reboot
     umount -R /mnt
     gum_complete "Installation complete. Rebooting in 10 seconds..."
