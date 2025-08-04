@@ -20,6 +20,9 @@ if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
     rm -f /usr/local/bin/lnos-shell.sh
     chsh -s /bin/bash root
     
+    # Remove autologin configuration so system reboots to normal login prompt
+    rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
+    
     # Run the installer
     ./LnOS-installer.sh --target=x86_64
 else
@@ -30,6 +33,9 @@ else
     # Remove autostart even if installer not found
     rm -f /usr/local/bin/lnos-shell.sh
     chsh -s /bin/bash root
+    
+    # Remove autologin configuration even if installer not found
+    rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
 fi
 
 echo ""

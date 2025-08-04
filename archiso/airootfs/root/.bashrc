@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Source the original bashrc if it exists
+if [ -f /etc/bash.bashrc ]; then
+    source /etc/bash.bashrc
+fi
+
 # Simple LnOS Autostart - run once on tty1
 if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
     # Mark that we've run
