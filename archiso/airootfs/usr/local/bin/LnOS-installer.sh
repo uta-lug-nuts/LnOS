@@ -370,6 +370,21 @@ install_x86_64()
 
     # Unmount and reboot
     umount -R /mnt
+    
+    # Ensure system boots from installed disk instead of ISO
+    if [ $UEFI -eq 1 ]; then
+        # For UEFI: Set the installed system as the next boot device
+        BOOT_ENTRY=$(efibootmgr | grep "GRUB" | head -1 | cut -d' ' -f1 | tr -d 'Boot')
+        if [ -n "$BOOT_ENTRY" ]; then
+            efibootmgr --bootnext "$BOOT_ENTRY" 2>/dev/null || true
+            gum_echo "Set UEFI to boot from installed system on next reboot"
+        fi
+    else
+        # For BIOS: Try to eject the CD/ISO
+        eject /dev/sr0 2>/dev/null || true
+        gum_echo "Attempted to eject CD/ISO for BIOS boot"
+    fi
+    
     gum_complete "Installation complete. Rebooting in 10 seconds..."
 		sleep 10
     reboot
