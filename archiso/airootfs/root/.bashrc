@@ -18,15 +18,18 @@ if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
         echo "Starting LnOS installer..." | tee /dev/tty
         echo "Starting LnOS installer..." >> /tmp/bashrc-debug.log
         
+        # Remove the autostart from bashrc immediately when installer starts
+        sed -i '/# Simple LnOS Autostart/,/fi$/d' /root/.bashrc
+        
         # Run installer with explicit terminal output
         ./LnOS-installer.sh --target=x86_64 2>&1 | tee /dev/tty
         
         echo "Installer completed" >> /tmp/bashrc-debug.log
-        
-        # Remove the autostart from bashrc after it runs
-        sed -i '/# Simple LnOS Autostart/,/fi$/d' /root/.bashrc
     else
         echo "ERROR: Installer not found!" | tee /dev/tty
         echo "ERROR: Installer not found!" >> /tmp/bashrc-debug.log
+        
+        # Remove the autostart from bashrc even if installer not found
+        sed -i '/# Simple LnOS Autostart/,/fi$/d' /root/.bashrc
     fi
 fi 
