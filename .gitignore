@@ -68,12 +68,16 @@ coverage/
 .coverage
 .pytest_cache/
 
-# GPG keys (security)
+# GPG private keys (security) - but allow public keys in keys/ directory
 *.gpg
-*.asc
+*private*.asc
+*secret*.asc
 private-keys/
+# Allow public keys in keys/ directory
+!keys/*public*.asc
+!keys/lnos-public-key.asc
 
 # Custom ISOs with different names
 lnos-*.iso
 archlinux-*.iso
-custom-*.iso 
+custom-*.iso docs/arm-image-expansion.md

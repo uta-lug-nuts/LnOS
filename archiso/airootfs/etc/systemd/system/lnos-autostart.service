@@ -1,15 +1,20 @@
 [Unit]
-Description=LnOS Installer Auto-start
-After=getty@tty1.service
-Wants=getty@tty1.service
+Description=LnOS Auto-start Installer
+After=multi-user.target
+ConditionPathExists=/usr/local/bin/setup-lnos-autostart.sh
 
 [Service]
 Type=oneshot
+ExecStartPre=/usr/local/bin/setup-lnos-autostart.sh
 ExecStart=/usr/local/bin/lnos-autostart.sh
 StandardInput=tty
 StandardOutput=tty
+StandardError=tty
 TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
 RemainAfterExit=yes
+TimeoutSec=300
 
 [Install]
 WantedBy=multi-user.target

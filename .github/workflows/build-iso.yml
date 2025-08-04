@@ -2,7 +2,7 @@ name: Build LnOS ISO
 
 on:
   push:
-    branches: [ main, ISO ]
+    branches: [ main, ISO_Updates ]
     paths:
       - 'archiso/**'
       - 'scripts/**'
@@ -91,27 +91,59 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build aarch64 SD card image
+      - name: Build aarch64 SD card images
         run: |
-          # Build ARM64 SD card image instead of ISO
+          # Build both full and minimal ARM64 SD card images
           docker run --rm --privileged \
             --cap-add=ALL \
             --security-opt=apparmor:unconfined \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             archlinux:latest \
-            bash -c "
-              # Install required tools
+            bash -c '
+              # Monitor disk space
+              echo "=== DISK SPACE BEFORE INSTALL ==="
+              df -h
+              
+              # Install minimal required tools (avoid base-devel to save space)
               pacman -Syu --noconfirm
-              pacman -S --noconfirm base-devel git wget parted dosfstools e2fsprogs multipath-tools
+              pacman -S --noconfirm git wget parted dosfstools e2fsprogs multipath-tools
               
-              chmod +x build-arm-image.sh
+              echo "=== DISK SPACE AFTER PACKAGE INSTALL ==="
+              df -h
               
-              # Build ARM64 SD card image for Raspberry Pi 4
+              # Clean up package cache to save space
+              pacman -Sc --noconfirm
+              
+              # Additional cleanup to free more space
+              rm -rf /var/cache/pacman/pkg/*
+              rm -rf /tmp/*
+              
+              echo "=== DISK SPACE AFTER CLEANUP ==="
+              df -h
+              
+              chmod +x build-arm-image.sh build-arm-minimal.sh
+              
+              # Check disk space before building images
+              echo "=== DISK SPACE BEFORE IMAGE BUILD ==="
+              df -h
+              
+              # Build minimal ARM64 SD card image first (smaller, faster)
+              echo "=== BUILDING MINIMAL ARM IMAGE ==="
+              ./build-arm-minimal.sh rpi4
+              
+              echo "=== DISK SPACE AFTER MINIMAL BUILD ==="
+              df -h
+              
+              # Build full ARM64 SD card image
+              echo "=== BUILDING FULL ARM IMAGE ==="
               ./build-arm-image.sh rpi4
-            "
+              
+              echo "=== DISK SPACE AFTER FULL BUILD ==="
+              df -h
+            '
 
-      - name: Upload aarch64 SD card image
+      - name: Upload aarch64 SD card images
         uses: actions/upload-artifact@v4
         with:
           name: lnos-aarch64-sdcard
@@ -190,6 +222,55 @@ jobs:
           echo "=== FINAL FILES ==="
           ls -lh
 
+      - name: Sign release files with GPG
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ISO'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          cd ./isos/
+          
+          echo "🔐 Signing release files with GPG..."
+          
+          # Import the private key
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          
+          # Get key ID for verification
+          KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ {print $5}' | head -1)
+          echo "📋 Using GPG key: $KEY_ID"
+          
+          # Sign all release files
+          for file in *.iso *.img *.xz; do
+            if [ -f "$file" ]; then
+              echo "🔏 Signing: $file"
+              
+              # Create detached ASCII-armored signature
+              gpg --batch --yes \
+                  --pinentry-mode loopback \
+                  --passphrase "$GPG_PASSPHRASE" \
+                  --local-user "$KEY_ID" \
+                  --detach-sign \
+                  --armor \
+                  --output "${file}.asc" \
+                  "$file"
+              
+              if [ -f "${file}.asc" ]; then
+                echo "✅ Successfully signed: $file -> ${file}.asc"
+                echo "📝 Signature size: $(wc -c < "${file}.asc") bytes"
+              else
+                echo "❌ Failed to sign: $file"
+              fi
+            fi
+          done
+          
+          echo ""
+          echo "=== SIGNED FILES ==="
+          ls -lh *.asc 2>/dev/null || echo "No signature files found"
+          
+          echo ""
+          echo "=== GPG KEY INFO ==="
+          gpg --list-keys "$KEY_ID" || echo "Key info not available"
+
       - name: Generate release tag
         id: tag
         run: |
@@ -204,9 +285,16 @@ jobs:
           body: |
             ## LnOS Custom Arch Linux Distribution
             
+            ![GPG Signed](https://img.shields.io/badge/GPG-Signed-brightgreen?style=for-the-badge&logo=gnupg)
+            ![Security Verified](https://img.shields.io/badge/Security-Verified-blue?style=for-the-badge&logo=shield)
+            ![Integrity Guaranteed](https://img.shields.io/badge/Integrity-Guaranteed-orange?style=for-the-badge&logo=checkmarx)
+            
+            **🔒 This release is cryptographically signed for authenticity and integrity**
+            
             This release contains custom minimal Arch Linux images with the LnOS installer.
             
             ### Features:
+            - **Cryptographically signed** with GPG (Key: `9486759312876AD7`)
             - Minimal Arch Linux base system
             - Interactive package selection
             - Desktop environment choices (GNOME, KDE, Hyprland, DWM, TTY)
@@ -214,14 +302,34 @@ jobs:
             - Automated partitioning and installation
             
             ### Files Included:
-            - **x86_64 ISO.XZ**: Compressed ISO for VMs, Intel/AMD computers, and USB boot
-            - **ARM64 IMG.XZ**: Compressed SD card image for Raspberry Pi 4 and ARM64 devices
+            - **x86_64 ISO/IMG**: For VMs, Intel/AMD computers, and USB boot
+            - **ARM64 IMG**: SD card image for Raspberry Pi 4 and ARM64 devices
+            - **Digital Signatures**: `.asc` files for verifying authenticity
             
             **Note**: Large files (>1GB) are compressed with XZ to stay under GitHub's 2GB limit. Files under 1GB are uncompressed and ready to use.
             
+            ### 🛡️ Security & Digital Signature Verification:
+            
+            > ⚠️ **IMPORTANT**: Always verify file signatures before use! All release files are digitally signed with GPG.
+            
+            **GPG Key Information:**
+            - **Key ID**: `9486759312876AD7`
+            - **Fingerprint**: `FF3B 2203 9FA1 CBC0 72E5 8967 9486 7593 1287 6AD7`
+            - **Owner**: LnOS Development Team
+            
+            **Verification Methods:**
+            ```bash
+            # Quick verification (auto-imports key)
+            curl -fsSL https://raw.githubusercontent.com/uta-lug-nuts/LnOS/main/scripts/verify-signature.sh | bash -s -- <filename>
+            
+            # Manual verification
+            curl -fsSL https://raw.githubusercontent.com/uta-lug-nuts/LnOS/main/keys/lnos-public-key.asc | gpg --import
+            gpg --verify <filename>.asc <filename>
+            ```
+            
             ### Checksums:
             ```
-            $(cd isos && sha256sum *.xz 2>/dev/null || echo "Checksums will be calculated...")
+            $(cd isos && sha256sum * 2>/dev/null || echo "Checksums will be calculated...")
             ```
           files: ./isos/*
           draft: false
