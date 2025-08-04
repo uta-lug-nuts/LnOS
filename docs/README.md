@@ -216,5 +216,5 @@ All LnOS releases are digitally signed with GPG to ensure authenticity and integ
 
 Inspired by Professor Bakker’s and UTA LUGNUTS Community of a vision for a UTA-specific distro.
 
-Built on the amazing work of the [Arch Linux community](htttps://archlinux.org).
+Built on the amazing work of the [Arch Linux community](https://archlinux.org).
 Install Files look beautiful from the wonderful tool: [GUM](https://github.com/charmbracelet/gum?tab=readme-ov-file)
