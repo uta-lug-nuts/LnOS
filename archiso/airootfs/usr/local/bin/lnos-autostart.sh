@@ -1,7 +1,19 @@
 #!/bin/bash
 
-# Wait for system to fully boot
-sleep 3
+# Wait for system to fully boot and network to be ready
+echo "Waiting for system to be ready..."
+sleep 5
+
+# Wait for network connectivity
+echo "Checking network connectivity..."
+for i in {1..30}; do
+    if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+        echo "Network is ready!"
+        break
+    fi
+    echo "Waiting for network... ($i/30)"
+    sleep 2
+done
 
 # Skip if not on tty1
 if [[ $(tty) != "/dev/tty1" ]]; then
