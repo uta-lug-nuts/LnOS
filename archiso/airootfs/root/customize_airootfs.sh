@@ -98,34 +98,7 @@ EOF
 echo "Disabling systemd services for terminal output..." >> /tmp/customize-debug.log
 systemctl disable lnos-autostart.service 2>/dev/null || true
 systemctl disable lnos-boot.service 2>/dev/null || true
-echo "Systemd services disabled, using bashrc method instead" >> /tmp/customize-debug.log
+echo "Systemd services disabled, using shell-based method" >> /tmp/customize-debug.log
 
-# Also keep the bashrc approach as backup
-echo "Creating bashrc backup..." >> /tmp/customize-debug.log
-cat > /root/.bashrc << 'EOF'
-#!/bin/bash
-
-# Debug: Log bashrc execution
-echo "Bashrc executed at $(date)" >> /tmp/bashrc-debug.log
-
-# Source the original bashrc if it exists
-if [ -f /etc/bash.bashrc ]; then
-    source /etc/bash.bashrc
-fi
-
-# Auto-start installer only on tty1 and only once (backup method)
-if [[ $(tty) == "/dev/tty1" ]] && [[ ! -f /tmp/lnos-autostart-run ]]; then
-    echo "Bashrc: Starting autostart on tty1" >> /tmp/bashrc-debug.log
-    # Mark that we've run the autostart
-    touch /tmp/lnos-autostart-run
-    
-    # Wait a moment for the system to settle
-    sleep 2
-    
-    # Run the autostart script
-    /usr/local/bin/lnos-autostart.sh
-else
-    echo "Bashrc: Skipping autostart - tty: $(tty), run flag: $([[ -f /tmp/lnos-autostart-run ]] && echo 'exists' || echo 'missing')" >> /tmp/bashrc-debug.log
-fi
-EOF
-echo "Bashrc created" >> /tmp/customize-debug.log
+# Note: Using shell-based autostart approach, not bashrc
+echo "Using shell-based autostart approach" >> /tmp/customize-debug.log
