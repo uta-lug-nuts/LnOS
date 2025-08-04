@@ -39,7 +39,7 @@ gum_echo()
 }
 gum_error()
 {
-    gum style --border double --margin "1 2" --padding "2 4"  --border-foreground 1 "$@"
+    gum style --border double --margin "1 2" --padding "2 4" --border-foreground 1 "$@"
 }
 gum_complete()
 {
@@ -101,12 +101,12 @@ setup_desktop_and_packages()
     done
 
     # Ensure base-devel is installed for AUR package building
-  	gum spin --spinner dot --title "Installing developer tools needed for packages" pacman -S --noconfirm base-devel
+  	gum spin --spinner dot --title "Installing developer tools needed for packages" -- pacman -S --noconfirm base-devel
 
     # Create a temporary directory for AUR package building
-    #AUR_DIR="/tmp/aur_build"
-    #mkdir -p "$AUR_DIR"
-    #chown "$username" "$AUR_DIR"
+    # AUR_DIR="/tmp/aur_build"
+    # mkdir -p "$AUR_DIR"
+    # chown "$username" "$AUR_DIR"
 
     case "$THEME" in
         "CSE")
@@ -115,7 +115,7 @@ setup_desktop_and_packages()
                 exit 1
             fi
 
-						# choose packages from CSE list (PACMAN)
+			# Choose packages from CSE list (PACMAN)
             PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt | gum choose --no-limit --header "Select Pacman Packages to Install:")
             PACMAN_PACKAGES=$(echo "$PACMAN_PACKAGES" | tr '\n' ' ')
             if [ -n "$PACMAN_PACKAGES" ]; then
