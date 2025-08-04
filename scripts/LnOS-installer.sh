@@ -56,11 +56,18 @@ setup_desktop_and_packages()
 
     # Desktop Environment Installation
     while true; do
-			DE_CHOICE=$(gum choose --header 'Choose your Desktop Environment (DE):' 'Gnome(good for beginners, similar to mac)" "KDE(good for beginners, similar to windows)' 'Hyprland(Tiling WM, basic dotfiles but requires more DIY)' 'DWM(similar to Hyprland)' 'TTY (no install required)')
-			if [[ "$DE_CHOICE" == "TTY (no install required)" ]]; then
-						gum_echo "TTY is preinstalled !"
+		DE_CHOICE=$(gum choose --header "Choose your Desktop Environment (DE):" \
+            "Gnome(good for beginners, similar to mac)" \
+            "KDE(good for beginners, similar to windows)" \
+            "Hyprland(Tiling WM, basic dotfiles but requires more DIY)" \
+            "DWM(similar to Hyprland)" \
+            "TTY (no install required)")
+            
+		if [[ "$DE_CHOICE" == "TTY (no install required)" ]]; then
+			echo "TTY is preinstalled !"
             break
         fi
+        
         gum confirm "You selected: $DE_CHOICE. Proceed with installation?" && break
         gum_echo "Returning to selection menu..."
     done
@@ -471,6 +478,8 @@ prepare_arm()
     umount -R /mnt
     gum style --border normal --margin "1" --padding "1" --border-foreground 212 "SD card preparation complete. Insert into Raspberry Pi and boot."
 }
+
+setup_desktop_and_packages
 
 # Main logic
 if [ "$1" = "--target=x86_64" ]; then
