@@ -388,9 +388,9 @@ install_x86_64()
 	# prompt and paritition the drives
 	setup_drive
 
-    # Install base system (Zen kernel cause it's cool)
+    # Install base system (zen kernel may be cool, but after some research about hardening, the linux hardened kernel makes 10x more sense for students and will be the default)
     gum_echo "Installing base system, will take some time (grab a coffee)"
-    pacstrap /mnt base linux-zen linux-firmware btrfs-progs
+    pacstrap /mnt base linux-hardened linux-firmware btrfs-progs
 
     gum_echo "base system install done!"
 
