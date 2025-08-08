@@ -73,6 +73,7 @@ coverage/
 *private*.asc
 *secret*.asc
 private-keys/
+phrase.txt
 # Allow public keys in keys/ directory
 !keys/*public*.asc
 !keys/lnos-public-key.asc

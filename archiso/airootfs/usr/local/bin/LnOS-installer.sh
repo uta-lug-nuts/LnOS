@@ -95,11 +95,11 @@ setup_desktop_and_packages()
             ;;
         "Hyprland(Tiling WM, basic dotfiles but requires more DIY)")
             gum_echo "Installing Hyprland..."
-            pacman -S --noconfirm wayland hyprland noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
+            pacman -S --noconfirm wayland hyprland noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty networkmanager
 
             # call and run JaKooLit's arch hyprland install
             gum_echo "Downloading JaKooLit's hyprland, please run the script after installation!"
-            sleep 10
+            sleep 2
             wget https://raw.githubusercontent.com/JaKooLit/Arch-Hyprland/main/auto-install.sh
         
             ;;
@@ -133,11 +133,8 @@ setup_desktop_and_packages()
             fi
 
 			# Choose packages from CSE list (PACMAN)
-            PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt | gum choose --no-limit --header "Select Pacman Packages to Install:")
-            PACMAN_PACKAGES=$(echo "$PACMAN_PACKAGES" | tr '\n' ' ')
-            if [ -n "$PACMAN_PACKAGES" ]; then
-                gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm $PACMAN_PACKAGES
-            fi
+            PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt)
+            gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm "$PACMAN_PACKAGES" 
 
             # Example AUR package installation (replace with actual AUR packages)
             #AUR_PACKAGES="example-aur-package" # Replace with actual AUR packages for CSE
@@ -239,7 +236,7 @@ configure_system()
 
     # Update and Install essential packages
     pacman -Syu --noconfirm
-    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw netcl wget curl
+    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw netcl wget curl xdg-user-dirs
 
     # Enable network services
     systemctl enable dhcpcd
