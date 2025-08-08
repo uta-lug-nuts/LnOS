@@ -26,25 +26,10 @@
 
 set -e
 
-# Make user connect to internet
-
-echo "Please connect to the internet"
-
-while true; do
-    if nmcli general status | grep -q "connected"; then
-        echo "user connected to internet"
-        break
-    else
-        nmtui
-    fi
-done
-
-
 if ! command -v gum &> /dev/null; then
     echo "Installing gum..."
     pacman -Sy --noconfirm gum
 fi
-
 
 # logging functions (only for 1 line)
 gum_echo()
@@ -53,12 +38,23 @@ gum_echo()
 }
 gum_error()
 {
-    gum style --border double --margin "1 2" --padding "2 4"  --border-foreground 1 "$@"
+    gum style --border double --margin "1 2" --padding "2 4" --border-foreground 1 "$@"
 }
 gum_complete()
 {
     gum style --border normal --margin "1 2" --padding "2 4" --border-foreground 158 "$@"
 }
+
+
+# Make user connect to internet
+# make it a bit simpler and just force nmtui on them
+echo "Please connect to the internet"
+
+gum_echo "connect to the internet? (installer wont work without it)"
+gum confirm || exit
+
+nmtui
+
 
 # Combines part 2 into part 1 script as to make installation easier
 # sets up the desktop environment and packages
@@ -70,11 +66,18 @@ setup_desktop_and_packages()
 
     # Desktop Environment Installation
     while true; do
-			DE_CHOICE=$(gum choose --header 'Choose your Desktop Environment (DE):' 'Gnome(good for beginners, similar to mac)" "KDE(good for beginners, similar to windows)' 'Hyprland(Tiling WM, basic dotfiles but requires more DIY)' 'DWM(similar to Hyprland)' 'TTY (no install required)')
-			if [[ "$DE_CHOICE" == "TTY (no install required)" ]]; then
-						gum_echo "TTY is preinstalled !"
+		DE_CHOICE=$(gum choose --header "Choose your Desktop Environment (DE):" \
+            "Gnome(good for beginners, similar to mac)" \
+            "KDE(good for beginners, similar to windows)" \
+            "Hyprland(Tiling WM, basic dotfiles but requires more DIY)" \
+            "DWM(similar to Hyprland)" \
+            "TTY (no install required)")
+            
+		if [[ "$DE_CHOICE" == "TTY (no install required)" ]]; then
+			echo "TTY is preinstalled !"
             break
         fi
+        
         gum confirm "You selected: $DE_CHOICE. Proceed with installation?" && break
         gum_echo "Returning to selection menu..."
     done
@@ -115,12 +118,12 @@ setup_desktop_and_packages()
     done
 
     # Ensure base-devel is installed for AUR package building
-  	gum spin --spinner dot --title "Installing developer tools needed for packages" pacman -S --noconfirm base-devel
+  	gum spin --spinner dot --title "Installing developer tools needed for packages" -- pacman -S --noconfirm base-devel
 
     # Create a temporary directory for AUR package building
-    #AUR_DIR="/tmp/aur_build"
-    #mkdir -p "$AUR_DIR"
-    #chown "$username" "$AUR_DIR"
+    # AUR_DIR="/tmp/aur_build"
+    # mkdir -p "$AUR_DIR"
+    # chown "$username" "$AUR_DIR"
 
     case "$THEME" in
         "CSE")
@@ -129,7 +132,7 @@ setup_desktop_and_packages()
                 exit 1
             fi
 
-						# choose packages from CSE list (PACMAN)
+			# Choose packages from CSE list (PACMAN)
             PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt | gum choose --no-limit --header "Select Pacman Packages to Install:")
             PACMAN_PACKAGES=$(echo "$PACMAN_PACKAGES" | tr '\n' ' ')
             if [ -n "$PACMAN_PACKAGES" ]; then
@@ -415,26 +418,8 @@ install_x86_64()
     fi
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
-    # Remove autologin configuration from installed system
-    rm -f /mnt/etc/systemd/system/getty@tty1.service.d/autologin.conf
-
     # Unmount and reboot
     umount -R /mnt
-    
-    # Ensure system boots from installed disk instead of ISO
-    if [ $UEFI -eq 1 ]; then
-        # For UEFI: Set the installed system as the next boot device
-        BOOT_ENTRY=$(efibootmgr | grep "GRUB" | head -1 | cut -d' ' -f1 | tr -d 'Boot')
-        if [ -n "$BOOT_ENTRY" ]; then
-            efibootmgr --bootnext "$BOOT_ENTRY" 2>/dev/null || true
-            gum_echo "Set UEFI to boot from installed system on next reboot"
-        fi
-    else
-        # For BIOS: Try to eject the CD/ISO
-        eject /dev/sr0 2>/dev/null || true
-        gum_echo "Attempted to eject CD/ISO for BIOS boot"
-    fi
-    
     gum_complete "Installation complete. Rebooting in 10 seconds..."
 		sleep 10
     reboot
@@ -503,6 +488,8 @@ prepare_arm()
     umount -R /mnt
     gum style --border normal --margin "1" --padding "1" --border-foreground 212 "SD card preparation complete. Insert into Raspberry Pi and boot."
 }
+
+setup_desktop_and_packages
 
 # Main logic
 if [ "$1" = "--target=x86_64" ]; then

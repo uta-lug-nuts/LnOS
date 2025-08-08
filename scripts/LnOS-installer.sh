@@ -26,25 +26,10 @@
 
 set -e
 
-# Make user connect to internet
-
-echo "Please connect to the internet"
-
-while true; do
-    if nmcli general status | grep -q "connected"; then
-        echo "user connected to internet"
-        break
-    else
-        nmtui
-    fi
-done
-
-
 if ! command -v gum &> /dev/null; then
     echo "Installing gum..."
     pacman -Sy --noconfirm gum
 fi
-
 
 # logging functions (only for 1 line)
 gum_echo()
@@ -59,6 +44,17 @@ gum_complete()
 {
     gum style --border normal --margin "1 2" --padding "2 4" --border-foreground 158 "$@"
 }
+
+
+# Make user connect to internet
+# make it a bit simpler and just force nmtui on them
+echo "Please connect to the internet"
+
+gum_echo "connect to the internet? (installer wont work without it)"
+gum confirm || exit
+
+nmtui
+
 
 # Combines part 2 into part 1 script as to make installation easier
 # sets up the desktop environment and packages
