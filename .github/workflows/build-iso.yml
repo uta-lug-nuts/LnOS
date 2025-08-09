@@ -275,6 +275,9 @@ jobs:
           
           sudo chmod +x /mnt/utm/usr/local/bin/lnos-shell.sh
           
+          # Add the custom shell to /etc/shells first
+          echo "/usr/local/bin/lnos-shell.sh" | sudo tee -a /mnt/utm/etc/shells
+          
           # Set the custom shell as root's default shell (auto-runs installer on boot)
           sudo chroot /mnt/utm chsh -s /usr/local/bin/lnos-shell.sh root
           
@@ -342,8 +345,13 @@ jobs:
           UUID=${BOOT_UUID} /boot vfat defaults 0 2
           EOF
           
+          # Force kill any processes that might be keeping the mount busy
+          sudo fuser -km /mnt/utm/ 2>/dev/null || true
+          sleep 2
+          
           # Unmount and cleanup
-          sudo umount -R /mnt/utm
+          sudo umount -l /mnt/utm/boot 2>/dev/null || true
+          sudo umount -l /mnt/utm 2>/dev/null || true
           sudo losetup -d ${LOOP_DEV}
           
           # Create output directory
