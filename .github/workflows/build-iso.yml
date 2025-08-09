@@ -358,8 +358,17 @@ jobs:
           # Skip bootloader installation - will be handled by LnOS installer
           echo "=== SKIPPING BOOTLOADER - WILL BE HANDLED BY LNOS INSTALLER ==="
           
-          # Unmount chroot filesystems
-          sudo umount /mnt/utm/sys /mnt/utm/proc /mnt/utm/dev
+          # Cleanup chroot filesystems (with proper process cleanup)
+          echo "=== CLEANING UP CHROOT ==="
+          
+          # Force kill any processes that might be keeping mounts busy
+          sudo fuser -km /mnt/utm 2>/dev/null || true
+          sleep 2
+          
+          # Unmount chroot filesystems in reverse order with lazy unmount as fallback
+          sudo umount /mnt/utm/sys 2>/dev/null || sudo umount -l /mnt/utm/sys 2>/dev/null || true
+          sudo umount /mnt/utm/proc 2>/dev/null || sudo umount -l /mnt/utm/proc 2>/dev/null || true
+          sudo umount /mnt/utm/dev 2>/dev/null || sudo umount -l /mnt/utm/dev 2>/dev/null || true
           
           # Create fstab
           BOOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p1)
@@ -370,14 +379,24 @@ jobs:
           UUID=${BOOT_UUID} /boot vfat defaults 0 2
           EOF
           
-          # Force kill any processes that might be keeping the mount busy
+          # Final cleanup - force kill any remaining processes
+          echo "=== FINAL CLEANUP ==="
           sudo fuser -km /mnt/utm/ 2>/dev/null || true
-          sleep 2
+          sleep 3
           
-          # Unmount and cleanup
-          sudo umount -l /mnt/utm/boot 2>/dev/null || true
-          sudo umount -l /mnt/utm 2>/dev/null || true
-          sudo losetup -d ${LOOP_DEV}
+          # Unmount in proper order with multiple attempts
+          echo "Unmounting boot partition..."
+          sudo umount /mnt/utm/boot 2>/dev/null || sudo umount -l /mnt/utm/boot 2>/dev/null || true
+          
+          echo "Unmounting root partition..."
+          sudo umount /mnt/utm 2>/dev/null || sudo umount -l /mnt/utm 2>/dev/null || true
+          
+          echo "Detaching loop device..."
+          sudo losetup -d ${LOOP_DEV} 2>/dev/null || true
+          
+          # Verify cleanup
+          echo "Verifying cleanup..."
+          sudo losetup -l | grep ${LOOP_DEV} || echo "Loop device successfully detached"
           
           # Create output directory
           mkdir -p out
