@@ -258,7 +258,7 @@ jobs:
                 > /mnt/utm/boot/config.txt
               
               # Create post-install script for UTM
-              cat > /mnt/utm/root/utm-setup.sh << "EOL"
+              cat > /mnt/utm/root/utm-setup.sh <<'"'"'EOFSCRIPT'"'"'
 #!/bin/bash
 # UTM Post-install setup script
 echo "Setting up LnOS for UTM Apple Silicon..."
@@ -284,7 +284,7 @@ chmod +x LnOS-installer.sh
 echo "Run ./LnOS-installer.sh --target=asahi to complete setup"
 
 echo "UTM setup complete! Reboot to continue with LnOS installation."
-EOL
+EOFSCRIPT
               
               chmod +x /mnt/utm/root/utm-setup.sh
               
