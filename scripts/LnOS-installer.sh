@@ -26,25 +26,28 @@
 
 set -e
 
-# Make user connect to internet
+# Prechecks for users that are cloning the install script to run in the archinstaller iso and not the lnos iso
+# the package paths are different on clones
+if cat /root/LnOS/pacman_packages/CSE_packages.txt | grep git -q ; then
+    echo "Detected cloned install, setting cloned to 1"
+    CLONED=1
+else
+CLONED=0
+fi
 
-echo "Please connect to the internet"
-
-while true; do
-    if nmcli general status | grep -q "connected"; then
-        echo "user connected to internet"
-        break
-    else
-        nmtui
-    fi
-done
-
+# init pacman key
+pacman-key --init
 
 if ! command -v gum &> /dev/null; then
     echo "Installing gum..."
     pacman -Sy --noconfirm gum
 fi
 
+if ! command -v nmtui &> /dev/null; then
+    echo "Installing network manager..."
+    pacman -Sy --noconfirm networkmanager
+    NetworkManager
+fi
 
 # logging functions (only for 1 line)
 gum_echo()
@@ -60,6 +63,16 @@ gum_complete()
     gum style --border normal --margin "1 2" --padding "2 4" --border-foreground 158 "$@"
 }
 
+# Make user connect to internet
+# make it a bit simpler and just force nmtui on them
+echo "Please connect to the internet"
+
+gum_echo "connect to the internet? (installer wont work without it)"
+gum confirm || exit
+
+nmtui
+
+
 # Combines part 2 into part 1 script as to make installation easier
 # sets up the desktop environment and packages
 setup_desktop_and_packages()
@@ -67,6 +80,13 @@ setup_desktop_and_packages()
     local username="$1" # Pass username as parameter
 
     gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Hello, there. Welcome to LnOs auto setup script"
+
+    # Install essential packages 
+  	gum spin --spinner dot --title "Installing developer tools needed for packages" -- pacman -S --noconfirm base-devel git wget networkmanager btrfs-progs openssh git dhcpcd networkmanager vi vim iw netcl wget curl xdg-user-dirs
+    
+    # Enable network services
+    systemctl enable dhcpcd
+    systemctl enable NetworkManager
 
     # Desktop Environment Installation
     while true; do
@@ -99,11 +119,11 @@ setup_desktop_and_packages()
             ;;
         "Hyprland(Tiling WM, basic dotfiles but requires more DIY)")
             gum_echo "Installing Hyprland..."
-            pacman -S --noconfirm wayland hyprland noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra
+            pacman -S --noconfirm wayland hyprland noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty networkmanager
 
             # call and run JaKooLit's arch hyprland install
             gum_echo "Downloading JaKooLit's hyprland, please run the script after installation!"
-            sleep 10
+            sleep 2
             wget https://raw.githubusercontent.com/JaKooLit/Arch-Hyprland/main/auto-install.sh
         
             ;;
@@ -126,45 +146,60 @@ setup_desktop_and_packages()
         gum confirm "You selected: $THEME. Proceed with installation?" && break
     done
 
-    # Ensure base-devel is installed for AUR package building
-  	gum spin --spinner dot --title "Installing developer tools needed for packages" -- pacman -S --noconfirm base-devel
-
-    # Create a temporary directory for AUR package building
-    # AUR_DIR="/tmp/aur_build"
-    # mkdir -p "$AUR_DIR"
-    # chown "$username" "$AUR_DIR"
-
     case "$THEME" in
         "CSE")
+            # ensure we have the right packages
+            PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt)
             if [ ! -f "/root/LnOS/pacman_packages/CSE_packages.txt" ]; then
                 gum_error  "Error: CSE_packages.txt not found in /root/LnOS/pacman_packages/. ."
-                exit 1
+            else
+                # checking if cloned
+                if $CLONED ; then
+                    PACMAN_PACKAGES=$(cat /root/LnOS/scripts/pacman_packages/CSE_packages.txt)
+                else
+                    gum_error "Error: CSE_packages.txt not found in /root/LnOS/scripts/pacman_packages/."
+                    exit 1
+                fi
             fi
-
 			# Choose packages from CSE list (PACMAN)
-            PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt | gum choose --no-limit --header "Select Pacman Packages to Install:")
-            PACMAN_PACKAGES=$(echo "$PACMAN_PACKAGES" | tr '\n' ' ')
-            if [ -n "$PACMAN_PACKAGES" ]; then
-                gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm $PACMAN_PACKAGES
-            fi
+            PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt)
+            gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm "$PACMAN_PACKAGES" 
 
-            # Example AUR package installation (replace with actual AUR packages)
-            #AUR_PACKAGES="example-aur-package" # Replace with actual AUR packages for CSE
-            #for pkg in $AUR_PACKAGES; do
-            #    gum style --border normal --margin "1" --padding "1" --border-foreground 212 "Installing AUR package: $pkg"
-            #    su - "$username" -c "
-            #        cd $AUR_DIR
-            #        git clone https://aur.archlinux.org/$pkg.git
-            #        cd $pkg
-            #        gpg --recv-keys \$(makepkg -si --printsrcinfo | grep -oP 'validpgpkeys = \(\K[^\)]+' | head -1) || exit 1
-            #        makepkg --verifysource || exit 1
-            #        makepkg -si --noconfirm
-            #    "
-            #    if [ $? -ne 0 ]; then
-            #        gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: Failed to install AUR package $pkg."
-            #        exit 1
-            #    fi
-            #done
+            # AUR will most likely be short with a few packages
+            # webcord, brave are the big ones that come to mind
+            # the reason is id like to teach users how to properly use aur
+            gum style \
+                --foreground 255 --border-foreground 130 --border double \
+                --width 100 --margin "1 2" --padding "2 4" \
+                'AUR (arch user repository) is less secure because its not maintained by arch.' \
+                'LnOS Maintainers picked these packages cause their released were signed with PGP keys' \
+            gum confirm "Will you proceed to download AUR packages ? (i.e. brave, webcord)" || return
+            
+            # clone paru and build
+            git clone https://aur.archlinux.org/paru.git
+            cd paru
+            makepkg -si
+            # exit and clean up paru
+            cd ..
+            rm -rf paru
+
+
+            gum_echo "Please review the packages you're about to download"
+            # check if we have the right packages
+            PARU_PACKAGES=$(cat /root/LnOS/paru_packages/paru_packages.txt)
+            if [ ! -f "/root/LnOS/paru_packages/paru_packages.txt" ]; then
+                gum_error  "Error: CSE_packages.txt not found in /root/LnOS/paru_packages/. ."
+            else
+                # checking if cloned
+                if $CLONED ; then
+                    PARU_PACKAGES=$(cat /root/LnOS/scripts/paru_packages/paru_packages.txt)
+                else
+                    gum_error "Error: CSE_packages.txt not found in /root/LnOS/scripts/paru_packages/."
+                    exit 1
+                fi
+            fi
+            paru -S "$PARU_PACKAGES"
+
 
             ;;
         "Asahi")
@@ -183,13 +218,29 @@ setup_desktop_and_packages()
         "Custom")
             PACMAN_PACKAGES=$(gum input --header "Enter the pacman packages you want (space-separated):")
             if [ -n "$PACMAN_PACKAGES" ]; then
-                gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm $PACMAN_PACKAGES
+                gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm "$PACMAN_PACKAGES"
             fi
+
+            gum_echo "AUR (arch user repository) is less secure because it's not maintained by arch. LnOS Maintainers picked these packages cause their released were signed with PGP keys"
+            gum confirm "Will you proceed to download AUR packages ? (i.e. brave, webcord)" || return
+            
+            # clone paru and build
+            git clone https://aur.archlinux.org/paru.git
+            cd paru
+            makepkg -si
+            # exit and clean up paru
+            cd ..
+            rm -rf paru
+
+
+            gum_echo "Please enter and review the packages you're about to download"
+            PARU_PACKAGES=$(gum input --header "Enter the paru packages you want (space-seperated):")
+            if [ -n "$PARU_PACKAGES" ]; then
+                paru -S "$PARU_PACKAGES"
+            fi
+            
             ;;
     esac
-
-    # Clean up AUR build directory
-    # rm -rf "$AUR_DIR"
 }
 
 # Function to configure the system (common for both architectures)
@@ -259,14 +310,10 @@ configure_system()
     echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-wheel
     chmod 440 /etc/sudoers.d/10-wheel
 
-    # Update and Install essential packages
+    # Update 
     pacman -Syu --noconfirm
-    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw netcl wget curl
 
-    # Enable network services
-    systemctl enable dhcpcd
-    systemctl enable NetworkManager
-
+    
     # setup the desktop environment
     setup_desktop_and_packages "$username"
 
@@ -415,7 +462,7 @@ install_x86_64()
 
     # Install base system (zen kernel may be cool, but after some research about hardening, the linux hardened kernel makes 10x more sense for students and will be the default)
     gum_echo "Installing base system, will take some time (grab a coffee)"
-    pacstrap /mnt base linux-hardened linux-firmware btrfs-progs
+    pacstrap /mnt base linux-hardened linux-firmware btrfs-progs base-devel git wget networkmanager btrfs-progs openssh git dhcpcd networkmanager vi vim iw wget curl xdg-user-dirs
 
     gum_echo "base system install done!"
 
@@ -428,7 +475,7 @@ install_x86_64()
 	# Chroot and configure the OS,
 	# before we enter chroot we also need to declare
 	# these bash functions as well so they can run
-    arch-chroot /mnt /bin/bash -c "$(declare -f configure_system setup_desktop_and_packages); configure_system"
+    arch-chroot /mnt /bin/bash -c "$(declare -f configure_system setup_desktop_and_packages gum_echo gum_error gum_complete); configure_system"
 
     # Cleanup and Install GRUB
     if [ $UEFI -eq 1 ]; then
@@ -511,120 +558,78 @@ prepare_arm()
     gum style --border normal --margin "1" --padding "1" --border-foreground 212 "SD card preparation complete. Insert into Raspberry Pi and boot."
 }
 
-# Function to install Asahi Linux for Apple Silicon Macs (run from macOS)
-install_asahi()
+# Function to install ARM Linux for Apple Silicon Macs using UTM (run from existing Linux)
+install_arm()
 {
-    gum_echo "Installing Asahi Linux for Apple Silicon..."
+    gum_echo "Installing ARM Linux for Apple Silicon using UTM..."
     
-    # Check if running on macOS
-    if [[ "$OSTYPE" != "darwin"* ]]; then
-        gum_error "Error: Asahi Linux installer must be run from macOS on an Apple Silicon Mac"
-        exit 1
-    fi
-    
-    # Check for Apple Silicon
+    # Check if running on ARM64
     ARCH=$(uname -m)
-    if [[ "$ARCH" != "arm64" ]]; then
-        gum_error "Error: Asahi Linux requires Apple Silicon (ARM64) hardware"
-        exit 1
-    fi
-    
-    # Check macOS version (need 12.3+)
-    MACOS_VERSION=$(sw_vers -productVersion)
-    MAJOR=$(echo "$MACOS_VERSION" | cut -d. -f1)
-    MINOR=$(echo "$MACOS_VERSION" | cut -d. -f2)
-    
-    if [[ $MAJOR -lt 12 ]] || ([[ $MAJOR -eq 12 ]] && [[ $MINOR -lt 3 ]]); then
-        gum_error "Error: macOS 12.3 or later required. Current version: $MACOS_VERSION"
-        exit 1
-    fi
-    
-    # Check available disk space (need 53GB+)
-    AVAILABLE_SPACE=$(df -g / | tail -1 | awk '{print $4}')
-    if [[ $AVAILABLE_SPACE -lt 53 ]]; then
-        gum_error "Error: At least 53GB free disk space required. Available: ${AVAILABLE_SPACE}GB"
+    if [[ "$ARCH" != "aarch64" ]] && [[ "$ARCH" != "arm64" ]]; then
+        gum_error "Error: ARM installation requires ARM64 hardware"
         exit 1
     fi
     
     gum_echo "System checks passed:"
-    gum_echo "- macOS Version: $MACOS_VERSION"
-    gum_echo "- Architecture: $ARCH"  
-    gum_echo "- Available Space: ${AVAILABLE_SPACE}GB"
+    gum_echo "- Architecture: $ARCH"
     
     # Confirm installation
-    if ! gum confirm "This will install Asahi Linux alongside macOS. Continue?"; then
+    if ! gum confirm "This will install ARM Linux. Continue?"; then
         exit 1
     fi
     
-    # Download and run Asahi installer
-    gum_echo "Downloading Asahi Linux installer..."
-    if ! curl -L https://alx.sh -o /tmp/asahi-install.sh; then
-        gum_error "Error: Failed to download Asahi installer"
+    # Setup drive for ARM installation
+    setup_drive
+    
+    # Install base system
+    gum_echo "Installing base system for ARM64..."
+    pacstrap /mnt base linux linux-firmware btrfs-progs base-devel git wget networkmanager btrfs-progs openssh git dhcpcd networkmanager vi vim iw wget curl xdg-user-dirs
+    
+    gum_echo "Base system install done!"
+    
+    # Copy LnOS repository files to target system
+    gum spin --spinner dot --title "copying LnOS files" -- bash -c "$(declare -f copy_lnos_files); copy_lnos_files"
+    
+    # Generate fstab
+    genfstab -U /mnt >> /mnt/etc/fstab
+    
+    # Chroot and configure the OS
+    arch-chroot /mnt /bin/bash -c "$(declare -f configure_system setup_desktop_and_packages gum_echo gum_error gum_complete); configure_system"
+    
+    # Install GRUB
+    if [ $UEFI -eq 1 ]; then
+        arch-chroot /mnt pacman -S --noconfirm grub efibootmgr
+        arch-chroot /mnt grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=GRUB
+    else
+        gum_error "Error: BIOS boot not supported on ARM64"
         exit 1
     fi
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     
-    # Make installer executable
-    chmod +x /tmp/asahi-install.sh
-    
-    # Run the Asahi installer
-    gum_echo "Running Asahi Linux installer..."
-    gum_echo "Follow the on-screen prompts to complete installation"
-    
-    /bin/bash /tmp/asahi-install.sh
-    
-    # Create post-install setup script
-    gum_echo "Creating post-install LnOS setup..."
-    
-    POST_INSTALL_SCRIPT="/tmp/lnos-asahi-setup.sh"
-    cat > "$POST_INSTALL_SCRIPT" << 'EOF'
-#!/bin/bash
-
-# LnOS post-install setup for Asahi Linux
-echo "Setting up LnOS on Asahi Linux..."
-
-# Update system
-sudo pacman -Syu --noconfirm
-
-# Install additional packages for LnOS compatibility
-if [ -f "/root/LnOS/pacman_packages/Asahi_packages.txt" ]; then
-    PACKAGES=$(cat /root/LnOS/pacman_packages/Asahi_packages.txt | tr '\n' ' ')
-    sudo pacman -S --noconfirm $PACKAGES
-else
-    echo "Warning: Asahi package list not found, installing basic packages"
-    sudo pacman -S --noconfirm git vim firefox code htop
-fi
-
-echo "LnOS setup for Asahi Linux complete!"
-echo "Reboot to start using your new system."
-EOF
-    
-    chmod +x "$POST_INSTALL_SCRIPT"
-    
-    gum_complete "Asahi Linux installation initiated!"
-    gum_echo "After reboot into Linux, run: sudo /tmp/lnos-asahi-setup.sh"
-    gum_echo "This will complete the LnOS setup with your selected packages."
+    # Unmount and reboot
+    umount -R /mnt
+    gum_complete "Installation complete. Rebooting in 10 seconds..."
+    sleep 10
+    reboot
 }
-
-setup_desktop_and_packages
-
 # Main logic
 if [ "$1" = "--target=x86_64" ]; then
   install_x86_64
 elif [ "$1" = "--target=aarch64" ]; then
   prepare_arm
-elif [ "$1" = "--target=asahi" ]; then
-  install_asahi
+elif [ "$1" = "--target=arm" ]; then
+  install_arm
 elif [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
 
 	gum style \
 		--foreground 255 --border-foreground 130 --border double \
 		--width 100 --margin "1 2" --padding "2 4" \
 		'Help Menu:' \
-		'Usage: installer.sh --target=[x86_64 | aarch64 | asahi] or -h' \
+		'Usage: installer.sh --target=[x86_64 | aarch64 | arm] or -h' \
 		'[--target]: sets the installer target architecture/platform' \
 		'  x86_64  - Standard Intel/AMD 64-bit installation (from Arch live ISO)' \
 		'  aarch64 - ARM64 installation for Raspberry Pi (from existing Linux)' \
-		'  asahi   - Apple Silicon Mac installation (from macOS)' \
+		'  arm     - ARM Linux installation for Apple Silicon using UTM' \
 		'Please check your cpu architecture by running: uname -m' \
 		'[-h] or [--help]: Brings up this help menu'
 
@@ -633,11 +638,11 @@ else
 	gum style \
 		--foreground 255 --border-foreground 1 --border double \
 		--width 100 --margin "1 2" --padding "2 4" \
-		'Usage: installer.sh --target=[x86_64 | aarch64 | asahi] or -h' \
+		'Usage: installer.sh --target=[x86_64 | aarch64 | arm] or -h' \
 		'[--target]: sets the installer target architecture/platform' \
 		'  x86_64  - Standard Intel/AMD 64-bit installation (from Arch live ISO)' \
 		'  aarch64 - ARM64 installation for Raspberry Pi (from existing Linux)' \
-		'  asahi   - Apple Silicon Mac installation (from macOS)' \
+		'  arm     - ARM Linux installation for Apple Silicon using UTM' \
 		'Please check your cpu architecture by running: uname -m' \
 		'[-h] or [--help]: Brings up this help menu'
 	exit 1
