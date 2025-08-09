@@ -176,7 +176,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             --platform linux/arm64 \
-            archlinux:latest \
+            arm64v8/archlinux:latest \
             bash -c '
               # Monitor disk space
               echo "=== DISK SPACE BEFORE INSTALL ==="
@@ -278,10 +278,10 @@ jobs:
                 echo 'systemctl enable qemu-guest-agent'
                 echo 'systemctl enable spice-vdagentd'
                 echo ''
-                echo '# Run LnOS installer with Asahi profile'
+                echo '# Run LnOS installer with ARM64 profile'
                 echo 'cd /root/LnOS'
                 echo 'chmod +x LnOS-installer.sh'
-                echo 'echo "Run ./LnOS-installer.sh --target=asahi to complete setup"'
+                echo 'echo "Run ./LnOS-installer.sh --target=arm64 to complete setup"'
                 echo ''
                 echo 'echo "UTM setup complete! Reboot to continue with LnOS installation."'
               } > /mnt/utm/root/utm-setup.sh
