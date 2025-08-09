@@ -294,10 +294,9 @@ jobs:
           Architecture = aarch64
           CheckSpace
           ParallelDownloads = 5
-          SigLevel    = DatabaseRequired
+          SigLevel    = Required DatabaseOptional
           LocalFileSigLevel = Optional
-          
-          Include = /etc/pacman.d/mirrorlist
+          RemoteFileSigLevel = Required
           
           [core]
           Include = /etc/pacman.d/mirrorlist
@@ -307,18 +306,34 @@ jobs:
           
           [community]
           Include = /etc/pacman.d/mirrorlist
+          
+          [alarm]
+          Include = /etc/pacman.d/mirrorlist
+          
+          [aur]
+          Include = /etc/pacman.d/mirrorlist
           EOF
           
           # Create mirrorlist for Arch Linux ARM
           sudo tee /mnt/utm/etc/pacman.d/mirrorlist << 'EOF'
           # Arch Linux ARM mirrorlist
-          Server = https://mirror.archlinuxarm.org/$arch/$repo
-          Server = https://uk.mirror.archlinuxarm.org/$arch/$repo
-          Server = https://us.mirror.archlinuxarm.org/$arch/$repo
+          Server = http://mirror.archlinuxarm.org/$arch/$repo
+          Server = http://ca.mirror.archlinuxarm.org/$arch/$repo  
+          Server = http://de.mirror.archlinuxarm.org/$arch/$repo
+          Server = http://fl.us.mirror.archlinuxarm.org/$arch/$repo
+          Server = http://hu.mirror.archlinuxarm.org/$arch/$repo
           EOF
           
-          # Configure networking
+          # Configure networking and DNS
           echo "=== CONFIGURING NETWORKING ==="
+          
+          # Setup DNS resolution first
+          sudo tee /mnt/utm/etc/resolv.conf << 'EOF'
+          nameserver 8.8.8.8
+          nameserver 8.8.4.4
+          nameserver 1.1.1.1
+          EOF
+          
           sudo chroot /mnt/utm systemctl enable systemd-networkd
           sudo chroot /mnt/utm systemctl enable systemd-resolved
           
@@ -330,12 +345,17 @@ jobs:
           
           [Network]
           DHCP=yes
+          DNS=8.8.8.8
+          DNS=8.8.4.4
           EOF
           
           # Mount necessary filesystems for chroot
           sudo mount --bind /dev /mnt/utm/dev
           sudo mount --bind /proc /mnt/utm/proc
           sudo mount --bind /sys /mnt/utm/sys
+          
+          # Copy host DNS resolution into chroot for network access
+          sudo cp /etc/resolv.conf /mnt/utm/etc/resolv.conf
           
           # Initialize pacman keyring
           sudo chroot /mnt/utm pacman-key --init
