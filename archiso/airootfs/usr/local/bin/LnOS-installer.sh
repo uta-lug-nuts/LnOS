@@ -486,8 +486,6 @@ prepare_arm()
     gum style --border normal --margin "1" --padding "1" --border-foreground 212 "SD card preparation complete. Insert into Raspberry Pi and boot."
 }
 
-setup_desktop_and_packages
-
 # Main logic
 if [ "$1" = "--target=x86_64" ]; then
   install_x86_64
