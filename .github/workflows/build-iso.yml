@@ -189,17 +189,17 @@ jobs:
           # Create UTM-compatible disk image
           echo "=== CREATING UTM DISK IMAGE ==="
           
-          # Create 16GB raw disk image for UTM
-          qemu-img create -f raw lnos-utm-apple-silicon.img 16G
+          # Create 1.5GB raw disk image for UTM (matches ARM build size)
+          dd if=/dev/zero of=lnos-utm-apple-silicon.img bs=1M count=1536
           
           # Create loop device and partition the disk
           LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
           
-          # Partition for UTM (GPT for UEFI boot)
-          sudo parted ${LOOP_DEV} mklabel gpt
-          sudo parted ${LOOP_DEV} mkpart ESP fat32 1MiB 513MiB
-          sudo parted ${LOOP_DEV} set 1 esp on
-          sudo parted ${LOOP_DEV} mkpart root ext4 513MiB 100%
+          # Partition using MBR (like ARM build, not UEFI GPT)
+          sudo parted ${LOOP_DEV} mklabel msdos
+          sudo parted ${LOOP_DEV} mkpart primary fat32 1MiB 257MiB
+          sudo parted ${LOOP_DEV} mkpart primary ext4 257MiB 100%
+          sudo parted ${LOOP_DEV} set 1 boot on
           
           # Refresh partition table
           sudo partprobe ${LOOP_DEV}
@@ -221,57 +221,117 @@ jobs:
           # Extract Arch Linux ARM for aarch64 (already downloaded)
           sudo tar -xzf /tmp/archlinuxarm.tar.gz -C /mnt/utm
           
-          # Copy LnOS files
-          sudo mkdir -p /mnt/utm/root/LnOS
-          sudo cp -r scripts/pacman_packages /mnt/utm/root/LnOS/
-          sudo cp scripts/LnOS-installer.sh /mnt/utm/root/LnOS/
+          # Copy LnOS files (match ARM build structure)
+          sudo mkdir -p /mnt/utm/root/LnOS/scripts
+          sudo cp -r scripts/pacman_packages /mnt/utm/root/LnOS/scripts/
+          sudo cp scripts/LnOS-installer.sh /mnt/utm/root/LnOS/scripts/
+          sudo chmod +x /mnt/utm/root/LnOS/scripts/LnOS-installer.sh
           sudo cp README.md LICENSE /mnt/utm/root/LnOS/ 2>/dev/null || true
           
-          # Create UTM-specific boot configuration
-          sudo tee /mnt/utm/boot/config.txt << EOF
-          # UTM Apple Silicon VM Configuration
-          # Enable device tree overlay support
-          # dtoverlay=vc4-kms-v3d
-          # dtparam=cma=64M
-          # Set GPU memory split
-          gpu_mem=128
-          # Enable hardware acceleration
-          dtparam=audio=on
-          # Network configuration
-          dtparam=i2c_arm=on
-          dtparam=spi=on
-          EOF
-          
-          # Create post-install script for UTM
-          sudo tee /mnt/utm/root/utm-setup.sh << 'EOF'
+          # Create the LnOS auto-start shell script for UTM (matches ARM build)
+          sudo tee /mnt/utm/usr/local/bin/lnos-shell.sh << 'EOF'
           #!/bin/bash
-          # UTM Post-install setup script
-          echo "Setting up LnOS for UTM Apple Silicon..."
           
-          # Update package databases
-          pacman -Sy --noconfirm
+          # LnOS Shell for UTM ARM64 - runs installer once then removes itself
           
-          # Install UTM-specific packages
-          pacman -S --noconfirm \
-              linux-aarch64 \
-              mesa \
-              xf86-video-vesa \
-              spice-vdagent \
-              qemu-guest-agent
+          echo "=========================================="
+          echo "      Welcome to LnOS UTM ARM64 Environment"
+          echo "=========================================="
+          echo ""
           
-          # Enable services for UTM
-          systemctl enable qemu-guest-agent
-          systemctl enable spice-vdagentd
+          # Wait a moment for system to settle
+          sleep 2
           
-          # Run LnOS installer with ARM64 profile
-          cd /root/LnOS
-          chmod +x LnOS-installer.sh
-          echo "Run ./LnOS-installer.sh --target=arm64 to complete setup"
+          # Check if installer exists and run it
+          if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
+              cd /root/LnOS/scripts
+              chmod +x ./LnOS-installer.sh
+              echo "Starting LnOS installer..."
+              
+              # Remove autostart immediately when installer starts
+              rm -f /usr/local/bin/lnos-shell.sh
+              chsh -s /bin/bash root
+              
+              # Run the installer with ARM64 target
+              ./LnOS-installer.sh --target=arm64
+          else
+              echo "ERROR: LnOS installer not found!"
+              echo "Available files in /root/LnOS/scripts/:"
+              ls -la /root/LnOS/scripts/ 2>/dev/null || echo "Directory not found"
+              echo ""
+              
+              # Remove autostart even if installer not found
+              rm -f /usr/local/bin/lnos-shell.sh
+              chsh -s /bin/bash root
+          fi
           
-          echo "UTM setup complete! Reboot to continue with LnOS installation."
+          echo ""
+          echo "LnOS installer completed. Dropping to shell..."
+          echo ""
+          
+          # Drop to bash shell
+          exec /bin/bash
           EOF
           
-          sudo chmod +x /mnt/utm/root/utm-setup.sh
+          sudo chmod +x /mnt/utm/usr/local/bin/lnos-shell.sh
+          
+          # Set the custom shell as root's default shell (auto-runs installer on boot)
+          sudo chroot /mnt/utm chsh -s /usr/local/bin/lnos-shell.sh root
+          
+          # Configure system settings (match ARM build)
+          echo "=== CONFIGURING SYSTEM SETTINGS ==="
+          
+          # Set default timezone
+          sudo ln -sf /usr/share/zoneinfo/UTC /mnt/utm/etc/localtime
+          
+          # Configure pacman for ARM64
+          sudo tee /mnt/utm/etc/pacman.conf << 'EOF'
+          [options]
+          HoldPkg     = pacman glibc
+          Architecture = aarch64
+          CheckSpace
+          ParallelDownloads = 5
+          SigLevel    = DatabaseRequired
+          LocalFileSigLevel = Optional
+          
+          Include = /etc/pacman.d/mirrorlist
+          
+          [core]
+          Include = /etc/pacman.d/mirrorlist
+          
+          [extra]
+          Include = /etc/pacman.d/mirrorlist
+          
+          [community]
+          Include = /etc/pacman.d/mirrorlist
+          EOF
+          
+          # Create mirrorlist for Arch Linux ARM
+          sudo tee /mnt/utm/etc/pacman.d/mirrorlist << 'EOF'
+          # Arch Linux ARM mirrorlist
+          Server = https://mirror.archlinuxarm.org/$arch/$repo
+          Server = https://uk.mirror.archlinuxarm.org/$arch/$repo
+          Server = https://us.mirror.archlinuxarm.org/$arch/$repo
+          EOF
+          
+          # Configure networking
+          echo "=== CONFIGURING NETWORKING ==="
+          sudo chroot /mnt/utm systemctl enable systemd-networkd
+          sudo chroot /mnt/utm systemctl enable systemd-resolved
+          
+          # Create network configuration for UTM
+          sudo mkdir -p /mnt/utm/etc/systemd/network
+          sudo tee /mnt/utm/etc/systemd/network/20-wired.network << 'EOF'
+          [Match]
+          Name=*
+          
+          [Network]
+          DHCP=yes
+          EOF
+          
+          # Initialize pacman keyring
+          sudo chroot /mnt/utm pacman-key --init
+          sudo chroot /mnt/utm pacman-key --populate archlinuxarm
           
           # Create fstab
           BOOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p1)
