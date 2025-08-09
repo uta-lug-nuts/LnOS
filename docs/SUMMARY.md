@@ -3,6 +3,7 @@
 * [Installation](installation.md)
 * [Tiling Window Managers](tilingWM.md)
 * [Developer Guide](Developer-Guide.md)
+* [Contributing](Contributing.md)
 * [Testing](testing.md)
 * [ISO Build](iso-build-readme.md)
 * [GPG Setup](GPG-SETUP.md)
