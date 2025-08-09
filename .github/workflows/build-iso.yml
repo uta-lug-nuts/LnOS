@@ -260,31 +260,31 @@ jobs:
               
               # Create post-install script for UTM
               {
-                echo "#!/bin/bash"
-                echo "# UTM Post-install setup script"
-                echo "echo \"Setting up LnOS for UTM Apple Silicon...\""
-                echo ""
-                echo "# Update package databases"
-                echo "pacman -Sy --noconfirm"
-                echo ""
-                echo "# Install UTM-specific packages"
-                echo "pacman -S --noconfirm \\"
-                echo "    linux-aarch64 \\"
-                echo "    mesa \\"
-                echo "    xf86-video-vesa \\"
-                echo "    spice-vdagent \\"
-                echo "    qemu-guest-agent"
-                echo ""
-                echo "# Enable services for UTM"
-                echo "systemctl enable qemu-guest-agent"
-                echo "systemctl enable spice-vdagentd"
-                echo ""
-                echo "# Run LnOS installer with Asahi profile"
-                echo "cd /root/LnOS"
-                echo "chmod +x LnOS-installer.sh"
-                echo "echo \"Run ./LnOS-installer.sh --target=asahi to complete setup\""
-                echo ""
-                echo "echo \"UTM setup complete! Reboot to continue with LnOS installation.\""
+                echo '#!/bin/bash'
+                echo '# UTM Post-install setup script'
+                echo 'echo "Setting up LnOS for UTM Apple Silicon..."'
+                echo ''
+                echo '# Update package databases'
+                echo 'pacman -Sy --noconfirm'
+                echo ''
+                echo '# Install UTM-specific packages'
+                echo 'pacman -S --noconfirm \'
+                echo '    linux-aarch64 \'
+                echo '    mesa \'
+                echo '    xf86-video-vesa \'
+                echo '    spice-vdagent \'
+                echo '    qemu-guest-agent'
+                echo ''
+                echo '# Enable services for UTM'
+                echo 'systemctl enable qemu-guest-agent'
+                echo 'systemctl enable spice-vdagentd'
+                echo ''
+                echo '# Run LnOS installer with Asahi profile'
+                echo 'cd /root/LnOS'
+                echo 'chmod +x LnOS-installer.sh'
+                echo 'echo "Run ./LnOS-installer.sh --target=asahi to complete setup"'
+                echo ''
+                echo 'echo "UTM setup complete! Reboot to continue with LnOS installation."'
               } > /mnt/utm/root/utm-setup.sh
               
               chmod +x /mnt/utm/root/utm-setup.sh
