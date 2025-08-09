@@ -27,6 +27,14 @@
 set -e
 
 # Prechecks for users that are cloning the install script to run in the archinstaller iso and not the lnos iso
+# the package paths are different on clones
+if cat /root/LnOS/pacman_packages/CSE_packages.txt | grep git -q ; then
+    echo "Detected cloned install, setting cloned to 1"
+    CLONED=1
+else
+CLONED=0
+fi
+
 if ! command -v gum &> /dev/null; then
     echo "Installing gum..."
     pacman -Sy --noconfirm gum
@@ -132,11 +140,19 @@ setup_desktop_and_packages()
 
     case "$THEME" in
         "CSE")
+            # ensure we have the right packages
+            PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt)
             if [ ! -f "/root/LnOS/pacman_packages/CSE_packages.txt" ]; then
                 gum_error  "Error: CSE_packages.txt not found in /root/LnOS/pacman_packages/. ."
-                exit 1
+            else
+                # checking if cloned
+                if CLONED ; then
+                    PACMAN_PACKAGES=$(cat /root/LnOS/scripts/pacman_packages/CSE_packages.txt)
+                else
+                    gum_error "Error: CSE_packages.txt not found in /root/LnOS/scripts/pacman_packages/."
+                    exit 1
+                fi
             fi
-
 			# Choose packages from CSE list (PACMAN)
             PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt)
             gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm "$PACMAN_PACKAGES" 
@@ -144,7 +160,6 @@ setup_desktop_and_packages()
             # AUR will most likely be short with a few packages
             # webcord, brave are the big ones that come to mind
             # the reason is id like to teach users how to properly use aur
-
             gum style \
                 --foreground 255 --border-foreground 130 --border double \
                 --width 100 --margin "1 2" --padding "2 4" \
@@ -162,7 +177,19 @@ setup_desktop_and_packages()
 
 
             gum_echo "Please review the packages you're about to download"
+            # check if we have the right packages
             PARU_PACKAGES=$(cat /root/LnOS/paru_packages/paru_packages.txt)
+            if [ ! -f "/root/LnOS/paru_packages/paru_packages.txt" ]; then
+                gum_error  "Error: CSE_packages.txt not found in /root/LnOS/paru_packages/. ."
+            else
+                # checking if cloned
+                if CLONED ; then
+                    PARU_PACKAGES=$(cat /root/LnOS/scripts/paru_packages/paru_packages.txt)
+                else
+                    gum_error "Error: CSE_packages.txt not found in /root/LnOS/scripts/paru_packages/."
+                    exit 1
+                fi
+            fi
             paru -S "$PARU_PACKAGES"
 
 
