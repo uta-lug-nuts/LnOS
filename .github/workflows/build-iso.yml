@@ -246,8 +246,8 @@ jobs:
               cat > /mnt/utm/boot/config.txt << "EOL"
 # UTM Apple Silicon VM Configuration
 # Enable device tree overlay support
-dtoverlay=
-dtparam=
+# dtoverlay=vc4-kms-v3d
+# dtparam=cma=64M
 # Set GPU memory split
 gpu_mem=128
 # Enable hardware acceleration
