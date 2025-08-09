@@ -126,11 +126,6 @@ setup_desktop_and_packages()
     # Ensure base-devel is installed for AUR package building
   	gum spin --spinner dot --title "Installing developer tools needed for packages" -- pacman -S --noconfirm base-devel
 
-    # Create a temporary directory for AUR package building
-    # AUR_DIR="/tmp/aur_build"
-    # mkdir -p "$AUR_DIR"
-    # chown "$username" "$AUR_DIR"
-
     case "$THEME" in
         "CSE")
             if [ ! -f "/root/LnOS/pacman_packages/CSE_packages.txt" ]; then
@@ -142,29 +137,27 @@ setup_desktop_and_packages()
             PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/CSE_packages.txt)
             gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm "$PACMAN_PACKAGES" 
 
-            # Example AUR package installation (replace with actual AUR packages)
-            #AUR_PACKAGES="example-aur-package" # Replace with actual AUR packages for CSE
-            #for pkg in $AUR_PACKAGES; do
-            #    gum style --border normal --margin "1" --padding "1" --border-foreground 212 "Installing AUR package: $pkg"
-            #    su - "$username" -c "
-            #        cd $AUR_DIR
-            #        git clone https://aur.archlinux.org/$pkg.git
-            #        cd $pkg
-            #        gpg --recv-keys \$(makepkg -si --printsrcinfo | grep -oP 'validpgpkeys = \(\K[^\)]+' | head -1) || exit 1
-            #        makepkg --verifysource || exit 1
-            #        makepkg -si --noconfirm
-            #    "
-            #    if [ $? -ne 0 ]; then
-            #        gum style --border normal --margin "1" --padding "1" --border-foreground 1 "Error: Failed to install AUR package $pkg."
-            #        exit 1
-            #    fi
-            #done
+            # AUR will most likely be short with a few packages
+            # webcord, brave are the big ones that come to mind
+            # the reason is id like to teach users how to properly use aur
+            
+            # clone paru and build
+            git clone https://aur.archlinux.org/paru.git
+            cd paru
+            makepkg -si
+            # exit and clean up paru
+            cd ..
+            rm -rf paru
+
+            PARU_PACKAGES=$(cat /root/LnOS/paru_packages/paru_packages.txt)
+            paru -S 
+
 
             ;;
         "Custom")
             PACMAN_PACKAGES=$(gum input --header "Enter the pacman packages you want (space-separated):")
             if [ -n "$PACMAN_PACKAGES" ]; then
-                gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm $PACMAN_PACKAGES
+                gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm "$PACMAN_PACKAGES"
             fi
             ;;
     esac
@@ -409,7 +402,7 @@ install_x86_64()
 	# Chroot and configure the OS,
 	# before we enter chroot we also need to declare
 	# these bash functions as well so they can run
-    arch-chroot /mnt /bin/bash -c "$(declare -f configure_system setup_desktop_and_packages); configure_system"
+    arch-chroot /mnt /bin/bash -c "$(declare -f configure_system setup_desktop_and_packages gum_echo gum_error gum_complete); configure_system"
 
     # Cleanup and Install GRUB
     if [ $UEFI -eq 1 ]; then
