@@ -243,19 +243,19 @@ jobs:
               cp README.md LICENSE /mnt/utm/root/LnOS/ 2>/dev/null || true
               
               # Create UTM-specific boot configuration
-              cat > /mnt/utm/boot/config.txt << '"'"'EOL'"'"'
-# UTM Apple Silicon VM Configuration
-# Enable device tree overlay support
-# dtoverlay=vc4-kms-v3d
-# dtparam=cma=64M
-# Set GPU memory split
-gpu_mem=128
-# Enable hardware acceleration
-dtparam=audio=on
-# Network configuration
-dtparam=i2c_arm=on
-dtparam=spi=on
-EOL
+              printf "%s\n" \
+                "# UTM Apple Silicon VM Configuration" \
+                "# Enable device tree overlay support" \
+                "# dtoverlay=vc4-kms-v3d" \
+                "# dtparam=cma=64M" \
+                "# Set GPU memory split" \
+                "gpu_mem=128" \
+                "# Enable hardware acceleration" \
+                "dtparam=audio=on" \
+                "# Network configuration" \
+                "dtparam=i2c_arm=on" \
+                "dtparam=spi=on" \
+                > /mnt/utm/boot/config.txt
               
               # Create post-install script for UTM
               cat > /mnt/utm/root/utm-setup.sh << "EOL"
