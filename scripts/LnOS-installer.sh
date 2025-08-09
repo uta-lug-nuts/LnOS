@@ -89,7 +89,12 @@ setup_desktop_and_packages()
 
     # Package Installation
     while true; do
-        THEME=$(gum choose --header "Choose your installation Profile:" "CSE" "Custom")
+        # Detect if running on Asahi and add Asahi option
+        if [[ "$(uname -r)" == *"asahi"* ]]; then
+            THEME=$(gum choose --header "Choose your installation Profile:" "CSE" "Asahi" "Custom")
+        else
+            THEME=$(gum choose --header "Choose your installation Profile:" "CSE" "Custom")
+        fi
         gum confirm "You selected: $THEME. Proceed with installation?" && break
     done
 
@@ -133,6 +138,19 @@ setup_desktop_and_packages()
             #    fi
             #done
 
+            ;;
+        "Asahi")
+            if [ ! -f "/root/LnOS/pacman_packages/Asahi_packages.txt" ]; then
+                gum_error  "Error: Asahi_packages.txt not found in /root/LnOS/pacman_packages/."
+                exit 1
+            fi
+
+            # choose packages from Asahi list (PACMAN)
+            PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/Asahi_packages.txt | gum choose --no-limit --header "Select Asahi Packages to Install:")
+            PACMAN_PACKAGES=$(echo "$PACMAN_PACKAGES" | tr '\n' ' ')
+            if [ -n "$PACMAN_PACKAGES" ]; then
+                gum spin --spinner dot --title "Installing asahi-specific packages..." -- pacman -S --noconfirm $PACMAN_PACKAGES
+            fi
             ;;
         "Custom")
             PACMAN_PACKAGES=$(gum input --header "Enter the pacman packages you want (space-separated):")
@@ -436,20 +454,119 @@ prepare_arm()
     gum style --border normal --margin "1" --padding "1" --border-foreground 212 "SD card preparation complete. Insert into Raspberry Pi and boot."
 }
 
+# Function to install Asahi Linux for Apple Silicon Macs (run from macOS)
+install_asahi()
+{
+    gum_echo "Installing Asahi Linux for Apple Silicon..."
+    
+    # Check if running on macOS
+    if [[ "$OSTYPE" != "darwin"* ]]; then
+        gum_error "Error: Asahi Linux installer must be run from macOS on an Apple Silicon Mac"
+        exit 1
+    fi
+    
+    # Check for Apple Silicon
+    ARCH=$(uname -m)
+    if [[ "$ARCH" != "arm64" ]]; then
+        gum_error "Error: Asahi Linux requires Apple Silicon (ARM64) hardware"
+        exit 1
+    fi
+    
+    # Check macOS version (need 12.3+)
+    MACOS_VERSION=$(sw_vers -productVersion)
+    MAJOR=$(echo "$MACOS_VERSION" | cut -d. -f1)
+    MINOR=$(echo "$MACOS_VERSION" | cut -d. -f2)
+    
+    if [[ $MAJOR -lt 12 ]] || ([[ $MAJOR -eq 12 ]] && [[ $MINOR -lt 3 ]]); then
+        gum_error "Error: macOS 12.3 or later required. Current version: $MACOS_VERSION"
+        exit 1
+    fi
+    
+    # Check available disk space (need 53GB+)
+    AVAILABLE_SPACE=$(df -g / | tail -1 | awk '{print $4}')
+    if [[ $AVAILABLE_SPACE -lt 53 ]]; then
+        gum_error "Error: At least 53GB free disk space required. Available: ${AVAILABLE_SPACE}GB"
+        exit 1
+    fi
+    
+    gum_echo "System checks passed:"
+    gum_echo "- macOS Version: $MACOS_VERSION"
+    gum_echo "- Architecture: $ARCH"  
+    gum_echo "- Available Space: ${AVAILABLE_SPACE}GB"
+    
+    # Confirm installation
+    if ! gum confirm "This will install Asahi Linux alongside macOS. Continue?"; then
+        exit 1
+    fi
+    
+    # Download and run Asahi installer
+    gum_echo "Downloading Asahi Linux installer..."
+    if ! curl -L https://alx.sh -o /tmp/asahi-install.sh; then
+        gum_error "Error: Failed to download Asahi installer"
+        exit 1
+    fi
+    
+    # Make installer executable
+    chmod +x /tmp/asahi-install.sh
+    
+    # Run the Asahi installer
+    gum_echo "Running Asahi Linux installer..."
+    gum_echo "Follow the on-screen prompts to complete installation"
+    
+    /bin/bash /tmp/asahi-install.sh
+    
+    # Create post-install setup script
+    gum_echo "Creating post-install LnOS setup..."
+    
+    POST_INSTALL_SCRIPT="/tmp/lnos-asahi-setup.sh"
+    cat > "$POST_INSTALL_SCRIPT" << 'EOF'
+#!/bin/bash
+
+# LnOS post-install setup for Asahi Linux
+echo "Setting up LnOS on Asahi Linux..."
+
+# Update system
+sudo pacman -Syu --noconfirm
+
+# Install additional packages for LnOS compatibility
+if [ -f "/root/LnOS/pacman_packages/Asahi_packages.txt" ]; then
+    PACKAGES=$(cat /root/LnOS/pacman_packages/Asahi_packages.txt | tr '\n' ' ')
+    sudo pacman -S --noconfirm $PACKAGES
+else
+    echo "Warning: Asahi package list not found, installing basic packages"
+    sudo pacman -S --noconfirm git vim firefox code htop
+fi
+
+echo "LnOS setup for Asahi Linux complete!"
+echo "Reboot to start using your new system."
+EOF
+    
+    chmod +x "$POST_INSTALL_SCRIPT"
+    
+    gum_complete "Asahi Linux installation initiated!"
+    gum_echo "After reboot into Linux, run: sudo /tmp/lnos-asahi-setup.sh"
+    gum_echo "This will complete the LnOS setup with your selected packages."
+}
+
 # Main logic
 if [ "$1" = "--target=x86_64" ]; then
   install_x86_64
 elif [ "$1" = "--target=aarch64" ]; then
-  gum_error "WIP: Please come back later!"
+  prepare_arm
+elif [ "$1" = "--target=asahi" ]; then
+  install_asahi
 elif [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
 
 	gum style \
 		--foreground 255 --border-foreground 130 --border double \
 		--width 100 --margin "1 2" --padding "2 4" \
 		'Help Menu:' \
-		'Usage: installer.sh --target=[x86_64 | aarch64] or -h' \
-		'[--target]: sets the installer"s target architecture (for the cpu)' \
-		'Please check your cpu architecture by running: uname -m ' \
+		'Usage: installer.sh --target=[x86_64 | aarch64 | asahi] or -h' \
+		'[--target]: sets the installer target architecture/platform' \
+		'  x86_64  - Standard Intel/AMD 64-bit installation (from Arch live ISO)' \
+		'  aarch64 - ARM64 installation for Raspberry Pi (from existing Linux)' \
+		'  asahi   - Apple Silicon Mac installation (from macOS)' \
+		'Please check your cpu architecture by running: uname -m' \
 		'[-h] or [--help]: Brings up this help menu'
 
 	exit 0
@@ -457,9 +574,12 @@ else
 	gum style \
 		--foreground 255 --border-foreground 1 --border double \
 		--width 100 --margin "1 2" --padding "2 4" \
-		'Usage: installer.sh --target=[x86_64 | aarch64] or -h' \
-		'[--target]: sets the installer"s target architecture (for the cpu)' \
-		'Please check your cpu architecture by running: uname -m ' \
+		'Usage: installer.sh --target=[x86_64 | aarch64 | asahi] or -h' \
+		'[--target]: sets the installer target architecture/platform' \
+		'  x86_64  - Standard Intel/AMD 64-bit installation (from Arch live ISO)' \
+		'  aarch64 - ARM64 installation for Raspberry Pi (from existing Linux)' \
+		'  asahi   - Apple Silicon Mac installation (from macOS)' \
+		'Please check your cpu architecture by running: uname -m' \
 		'[-h] or [--help]: Brings up this help menu'
 	exit 1
 fi
