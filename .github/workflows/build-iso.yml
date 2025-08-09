@@ -167,148 +167,132 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Apple Silicon UTM container
+      - name: Build Apple Silicon UTM disk image
         run: |
-          # Build UTM-compatible image for Apple Silicon
-          docker run --rm --privileged \
-            --cap-add=ALL \
-            --security-opt=apparmor:unconfined \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            --platform linux/arm64 \
-            arm64v8/archlinux:latest \
-            bash -c '
-              # Monitor disk space
-              echo "=== DISK SPACE BEFORE INSTALL ==="
-              df -h
-              
-              # Install minimal required tools for UTM image creation
-              pacman -Syu --noconfirm
-              pacman -S --noconfirm git wget parted dosfstools e2fsprogs qemu-base qemu-system-aarch64 gum
-              
-              echo "=== DISK SPACE AFTER PACKAGE INSTALL ==="
-              df -h
-              
-              # Clean up package cache to save space
-              pacman -Sc --noconfirm
-              rm -rf /var/cache/pacman/pkg/*
-              rm -rf /tmp/*
-              
-              echo "=== DISK SPACE AFTER CLEANUP ==="
-              df -h
-              
-              # Make scripts executable
-              chmod +x scripts/LnOS-installer.sh
-              
-              # Create UTM-compatible disk image
-              echo "=== CREATING UTM DISK IMAGE ==="
-              
-              # Create 16GB raw disk image for UTM
-              qemu-img create -f raw lnos-utm-apple-silicon.img 16G
-              
-              # Create loop device and partition the disk
-              LOOP_DEV=$(losetup -f --show lnos-utm-apple-silicon.img)
-              
-              # Partition for UTM (GPT for UEFI boot)
-              parted ${LOOP_DEV} mklabel gpt
-              parted ${LOOP_DEV} mkpart ESP fat32 1MiB 513MiB
-              parted ${LOOP_DEV} set 1 esp on
-              parted ${LOOP_DEV} mkpart root ext4 513MiB 100%
-              
-              # Refresh partition table
-              partprobe ${LOOP_DEV}
-              sleep 2
-              
-              # Format partitions
-              mkfs.fat -F32 ${LOOP_DEV}p1
-              mkfs.ext4 ${LOOP_DEV}p2
-              
-              # Mount partitions
-              mkdir -p /mnt/utm
-              mount ${LOOP_DEV}p2 /mnt/utm
-              mkdir -p /mnt/utm/boot
-              mount ${LOOP_DEV}p1 /mnt/utm/boot
-              
-              # Install base Arch Linux ARM system
-              echo "=== INSTALLING BASE SYSTEM ==="
-              
-              # Download and extract Arch Linux ARM for aarch64
-              wget http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz -O /tmp/archlinuxarm.tar.gz
-              tar -xzf /tmp/archlinuxarm.tar.gz -C /mnt/utm
-              
-              # Copy LnOS files
-              mkdir -p /mnt/utm/root/LnOS
-              cp -r scripts/pacman_packages /mnt/utm/root/LnOS/
-              cp scripts/LnOS-installer.sh /mnt/utm/root/LnOS/
-              cp README.md LICENSE /mnt/utm/root/LnOS/ 2>/dev/null || true
-              
-              # Create UTM-specific boot configuration
-              printf "%s\n" \
-                "# UTM Apple Silicon VM Configuration" \
-                "# Enable device tree overlay support" \
-                "# dtoverlay=vc4-kms-v3d" \
-                "# dtparam=cma=64M" \
-                "# Set GPU memory split" \
-                "gpu_mem=128" \
-                "# Enable hardware acceleration" \
-                "dtparam=audio=on" \
-                "# Network configuration" \
-                "dtparam=i2c_arm=on" \
-                "dtparam=spi=on" \
-                > /mnt/utm/boot/config.txt
-              
-              # Create post-install script for UTM
-              {
-                echo '#!/bin/bash'
-                echo '# UTM Post-install setup script'
-                echo 'echo "Setting up LnOS for UTM Apple Silicon..."'
-                echo ''
-                echo '# Update package databases'
-                echo 'pacman -Sy --noconfirm'
-                echo ''
-                echo '# Install UTM-specific packages'
-                echo 'pacman -S --noconfirm \'
-                echo '    linux-aarch64 \'
-                echo '    mesa \'
-                echo '    xf86-video-vesa \'
-                echo '    spice-vdagent \'
-                echo '    qemu-guest-agent'
-                echo ''
-                echo '# Enable services for UTM'
-                echo 'systemctl enable qemu-guest-agent'
-                echo 'systemctl enable spice-vdagentd'
-                echo ''
-                echo '# Run LnOS installer with ARM64 profile'
-                echo 'cd /root/LnOS'
-                echo 'chmod +x LnOS-installer.sh'
-                echo 'echo "Run ./LnOS-installer.sh --target=arm64 to complete setup"'
-                echo ''
-                echo 'echo "UTM setup complete! Reboot to continue with LnOS installation."'
-              } > /mnt/utm/root/utm-setup.sh
-              
-              chmod +x /mnt/utm/root/utm-setup.sh
-              
-              # Create fstab
-              BOOT_UUID=$(blkid -s UUID -o value ${LOOP_DEV}p1)
-              ROOT_UUID=$(blkid -s UUID -o value ${LOOP_DEV}p2)
-              
-              {
-                echo "UUID=${ROOT_UUID} / ext4 defaults 0 1"
-                echo "UUID=${BOOT_UUID} /boot vfat defaults 0 2"
-              } > /mnt/utm/etc/fstab
-              
-              # Unmount and cleanup
-              umount -R /mnt/utm
-              losetup -d ${LOOP_DEV}
-              
-              # Create output directory
-              mkdir -p out
-              mv lnos-utm-apple-silicon.img out/
-              
-              echo "=== UTM IMAGE BUILD COMPLETE ==="
-              ls -lh out/
-              df -h
-            '
+          # Create UTM-compatible disk image with Arch Linux ARM
+          sudo apt update && sudo apt install -y wget parted dosfstools e2fsprogs qemu-utils
+          
+          # Monitor disk space
+          echo "=== DISK SPACE BEFORE INSTALL ==="
+          df -h
+          
+          # Download Arch Linux ARM rootfs
+          echo "=== DOWNLOADING ARCH LINUX ARM ==="
+          wget http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz -O /tmp/archlinuxarm.tar.gz
+          
+          echo "=== DISK SPACE AFTER DOWNLOAD ==="
+          df -h
+          
+          # Make scripts executable
+          chmod +x scripts/LnOS-installer.sh
+          
+          # Create UTM-compatible disk image
+          echo "=== CREATING UTM DISK IMAGE ==="
+          
+          # Create 16GB raw disk image for UTM
+          qemu-img create -f raw lnos-utm-apple-silicon.img 16G
+          
+          # Create loop device and partition the disk
+          LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
+          
+          # Partition for UTM (GPT for UEFI boot)
+          sudo parted ${LOOP_DEV} mklabel gpt
+          sudo parted ${LOOP_DEV} mkpart ESP fat32 1MiB 513MiB
+          sudo parted ${LOOP_DEV} set 1 esp on
+          sudo parted ${LOOP_DEV} mkpart root ext4 513MiB 100%
+          
+          # Refresh partition table
+          sudo partprobe ${LOOP_DEV}
+          sleep 2
+          
+          # Format partitions
+          sudo mkfs.fat -F32 ${LOOP_DEV}p1
+          sudo mkfs.ext4 ${LOOP_DEV}p2
+          
+          # Mount partitions
+          sudo mkdir -p /mnt/utm
+          sudo mount ${LOOP_DEV}p2 /mnt/utm
+          sudo mkdir -p /mnt/utm/boot
+          sudo mount ${LOOP_DEV}p1 /mnt/utm/boot
+          
+          # Install base Arch Linux ARM system
+          echo "=== INSTALLING BASE SYSTEM ==="
+          
+          # Extract Arch Linux ARM for aarch64 (already downloaded)
+          sudo tar -xzf /tmp/archlinuxarm.tar.gz -C /mnt/utm
+          
+          # Copy LnOS files
+          sudo mkdir -p /mnt/utm/root/LnOS
+          sudo cp -r scripts/pacman_packages /mnt/utm/root/LnOS/
+          sudo cp scripts/LnOS-installer.sh /mnt/utm/root/LnOS/
+          sudo cp README.md LICENSE /mnt/utm/root/LnOS/ 2>/dev/null || true
+          
+          # Create UTM-specific boot configuration
+          sudo tee /mnt/utm/boot/config.txt << EOF
+          # UTM Apple Silicon VM Configuration
+          # Enable device tree overlay support
+          # dtoverlay=vc4-kms-v3d
+          # dtparam=cma=64M
+          # Set GPU memory split
+          gpu_mem=128
+          # Enable hardware acceleration
+          dtparam=audio=on
+          # Network configuration
+          dtparam=i2c_arm=on
+          dtparam=spi=on
+          EOF
+          
+          # Create post-install script for UTM
+          sudo tee /mnt/utm/root/utm-setup.sh << 'EOF'
+          #!/bin/bash
+          # UTM Post-install setup script
+          echo "Setting up LnOS for UTM Apple Silicon..."
+          
+          # Update package databases
+          pacman -Sy --noconfirm
+          
+          # Install UTM-specific packages
+          pacman -S --noconfirm \
+              linux-aarch64 \
+              mesa \
+              xf86-video-vesa \
+              spice-vdagent \
+              qemu-guest-agent
+          
+          # Enable services for UTM
+          systemctl enable qemu-guest-agent
+          systemctl enable spice-vdagentd
+          
+          # Run LnOS installer with ARM64 profile
+          cd /root/LnOS
+          chmod +x LnOS-installer.sh
+          echo "Run ./LnOS-installer.sh --target=arm64 to complete setup"
+          
+          echo "UTM setup complete! Reboot to continue with LnOS installation."
+          EOF
+          
+          sudo chmod +x /mnt/utm/root/utm-setup.sh
+          
+          # Create fstab
+          BOOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p1)
+          ROOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p2)
+          
+          sudo tee /mnt/utm/etc/fstab << EOF
+          UUID=${ROOT_UUID} / ext4 defaults 0 1
+          UUID=${BOOT_UUID} /boot vfat defaults 0 2
+          EOF
+          
+          # Unmount and cleanup
+          sudo umount -R /mnt/utm
+          sudo losetup -d ${LOOP_DEV}
+          
+          # Create output directory
+          mkdir -p out
+          mv lnos-utm-apple-silicon.img out/
+          
+          echo "=== UTM IMAGE BUILD COMPLETE ==="
+          ls -lh out/
+          df -h
 
       - name: Upload Apple Silicon UTM image
         uses: actions/upload-artifact@v4
