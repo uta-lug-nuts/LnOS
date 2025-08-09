@@ -252,8 +252,8 @@ jobs:
               rm -f /usr/local/bin/lnos-shell.sh
               chsh -s /bin/bash root
               
-              # Run the installer with ARM64 target
-              ./LnOS-installer.sh --target=arm64
+              # Run the installer with ARM target
+              ./LnOS-installer.sh --target=arm
           else
               echo "ERROR: LnOS installer not found!"
               echo "Available files in /root/LnOS/scripts/:"
@@ -287,16 +287,15 @@ jobs:
           # Set default timezone
           sudo ln -sf /usr/share/zoneinfo/UTC /mnt/utm/etc/localtime
           
-          # Configure pacman for ARM64
+          # Configure pacman for ARM64 (using working Pi configuration)
           sudo tee /mnt/utm/etc/pacman.conf << 'EOF'
           [options]
           HoldPkg     = pacman glibc
           Architecture = aarch64
           CheckSpace
           ParallelDownloads = 5
-          SigLevel    = Required DatabaseOptional
+          SigLevel    = DatabaseRequired
           LocalFileSigLevel = Optional
-          RemoteFileSigLevel = Required
           
           [core]
           Include = /etc/pacman.d/mirrorlist
@@ -306,22 +305,17 @@ jobs:
           
           [community]
           Include = /etc/pacman.d/mirrorlist
-          
-          [alarm]
-          Include = /etc/pacman.d/mirrorlist
-          
-          [aur]
-          Include = /etc/pacman.d/mirrorlist
           EOF
           
-          # Create mirrorlist for Arch Linux ARM
+          # Create mirrorlist for Arch Linux ARM (using working Pi configuration)
           sudo tee /mnt/utm/etc/pacman.d/mirrorlist << 'EOF'
           # Arch Linux ARM mirrorlist
-          Server = http://mirror.archlinuxarm.org/$arch/$repo
-          Server = http://ca.mirror.archlinuxarm.org/$arch/$repo  
-          Server = http://de.mirror.archlinuxarm.org/$arch/$repo
-          Server = http://fl.us.mirror.archlinuxarm.org/$arch/$repo
-          Server = http://hu.mirror.archlinuxarm.org/$arch/$repo
+          
+          # Primary mirrors
+          Server = https://mirror.archlinuxarm.org/$arch/$repo
+          Server = https://uk.mirror.archlinuxarm.org/$arch/$repo
+          Server = https://us.mirror.archlinuxarm.org/$arch/$repo
+          Server = https://sg.mirror.archlinuxarm.org/$arch/$repo
           EOF
           
           # Configure networking and DNS
@@ -357,20 +351,12 @@ jobs:
           # Copy host DNS resolution into chroot for network access
           sudo cp /etc/resolv.conf /mnt/utm/etc/resolv.conf
           
-          # Initialize pacman keyring
+          # Initialize pacman keyring (essential only)
           sudo chroot /mnt/utm pacman-key --init
           sudo chroot /mnt/utm pacman-key --populate archlinuxarm
           
-          # Install UEFI bootloader and kernel
-          echo "=== INSTALLING BOOTLOADER ==="
-          sudo chroot /mnt/utm pacman -Sy --noconfirm
-          sudo chroot /mnt/utm pacman -S --noconfirm linux-aarch64 grub efibootmgr
-          
-          # Install GRUB to EFI system partition
-          sudo chroot /mnt/utm grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=GRUB --recheck
-          
-          # Generate GRUB configuration
-          sudo chroot /mnt/utm grub-mkconfig -o /boot/grub/grub.cfg
+          # Skip bootloader installation - will be handled by LnOS installer
+          echo "=== SKIPPING BOOTLOADER - WILL BE HANDLED BY LNOS INSTALLER ==="
           
           # Unmount chroot filesystems
           sudo umount /mnt/utm/sys /mnt/utm/proc /mnt/utm/dev
