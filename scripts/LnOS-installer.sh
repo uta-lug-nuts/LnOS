@@ -146,7 +146,7 @@ setup_desktop_and_packages()
                 gum_error  "Error: CSE_packages.txt not found in /root/LnOS/pacman_packages/. ."
             else
                 # checking if cloned
-                if CLONED ; then
+                if $CLONED ; then
                     PACMAN_PACKAGES=$(cat /root/LnOS/scripts/pacman_packages/CSE_packages.txt)
                 else
                     gum_error "Error: CSE_packages.txt not found in /root/LnOS/scripts/pacman_packages/."
@@ -183,7 +183,7 @@ setup_desktop_and_packages()
                 gum_error  "Error: CSE_packages.txt not found in /root/LnOS/paru_packages/. ."
             else
                 # checking if cloned
-                if CLONED ; then
+                if $CLONED ; then
                     PARU_PACKAGES=$(cat /root/LnOS/scripts/paru_packages/paru_packages.txt)
                 else
                     gum_error "Error: CSE_packages.txt not found in /root/LnOS/scripts/paru_packages/."
