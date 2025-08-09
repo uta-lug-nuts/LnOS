@@ -1,4 +1,83 @@
+# Documentation tools
 .obsidian/
+_book/
 
-# Ignore output from building Honkit 
-_book/ 
+# ISO Build Artifacts
+out/
+*.iso
+*.iso.sig
+work/
+/tmp/archiso-tmp/
+
+# Build directories and cache
+build/
+dist/
+cache/
+
+# Log files
+*.log
+*.log.*
+build.log
+archiso.log
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+temp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*~
+*.swp
+*.swo
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+
+# Package manager files
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Container runtime files
+.docker/
+docker-compose.override.yml
+
+# Test artifacts
+coverage/
+.coverage
+.pytest_cache/
+
+# GPG private keys (security) - but allow public keys in keys/ directory
+*.gpg
+*private*.asc
+*secret*.asc
+private-keys/
+# Allow public keys in keys/ directory
+!keys/*public*.asc
+!keys/lnos-public-key.asc
+
+# Custom ISOs with different names
+lnos-*.iso
+archlinux-*.iso
+custom-*.iso docs/arm-image-expansion.md

@@ -1,6 +1,15 @@
 <center><img src="https://github.com/uta-lug-nuts/LnOS/blob/main/docs/images/Tux_with_toolbox.png?raw=true" width=50% alt="tux with toolbox"></center>
 
-# LnOS a Customized Arch Distro tailored to UTA Students
+# 🔐 LnOS a Customized Arch Distro tailored to UTA Students
+
+![GPG Signed](https://img.shields.io/badge/GPG-Signed-brightgreen?style=for-the-badge&logo=gnupg)
+![Security Verified](https://img.shields.io/badge/Security-Verified-blue?style=for-the-badge&logo=shield)
+![Integrity Guaranteed](https://img.shields.io/badge/Integrity-Guaranteed-orange?style=for-the-badge&logo=checkmarx)
+![Build Status](https://img.shields.io/github/actions/workflow/status/bakkertj/LnOS/build-iso.yml?style=for-the-badge&logo=github)
+![Latest Release](https://img.shields.io/github/v/release/bakkertj/LnOS?style=for-the-badge&logo=github)
+
+**🔒 All releases are cryptographically signed for authenticity and integrity**
+
 "A UTA flavored distro with all the applications and tools the different engineering majors use" - Professor Bakker
 
 ## Overview
@@ -44,44 +53,114 @@ Click here to see guide on testing: [Testing](testing.md)
 
 ## Installation Instructions
 
->**NOTE:**  
->This is highly experimental and not recommend to try on your dedicated machine yet since it hasn't been thoughrougly tested.
->please instead follow a real install guide from: [[https://wiki.archlinux.org/title/Installation_guide]] 
+### Custom ISO Installation
 
-1. Download Arch Linux ISO:
+Pre-built LnOS ISOs are available with the installer included.
 
-Get the latest ISO from [[https://archlinux.org/download/]]
+#### Option 1: Download Pre-built ISO
 
-2. Create Bootable Media:
+> ⚠️ **SECURITY NOTICE**: Always verify file signatures before use! All LnOS releases are digitally signed.
 
-Use tools like [rufus](https://rufus.ie/en/) or [Balena Etcher](https://www.balena.io/etcher) to write the ISO to a USB drive or SD card.
+1. Download the latest release from [GitHub Releases](https://github.com/uta-lug-nuts/LnOS/releases)
+   - `lnos-x86_64-*.iso` for Intel/AMD 64-bit systems
+   - `lnos-aarch64-*.iso` for ARM 64-bit systems (Raspberry Pi 4+)
+   - `*.asc` signature files for verification
 
+2. **Verify digital signature** (recommended):
+   ```bash
+   # Quick verification (auto-imports key)
+   curl -fsSL https://raw.githubusercontent.com/bakkertj/LnOS/main/scripts/verify-signature.sh | bash -s -- lnos-*.iso
+   
+   # Manual verification
+   curl -fsSL https://raw.githubusercontent.com/bakkertj/LnOS/main/keys/lnos-public-key.asc | gpg --import
+   gpg --verify lnos-*.iso.asc lnos-*.iso
+   ```
 
-3. Boot and Install Base System:
+3. Create bootable USB:
+   ```bash
+   # Linux/macOS
+   sudo dd if=lnos-x86_64-*.iso of=/dev/sdX bs=4M status=progress
+   
+   # Windows: Use Rufus or Balena Etcher
+   ```
 
-clone our repo:
+3. Boot and install:
+   - Boot from USB (automatic login as root)
+   - Run the installer: `cd /root/LnOS/scripts && ./LnOS-installer.sh --target=x86_64`
+   - Follow the interactive prompts to select packages and desktop environment
+
+#### Option 2: Build Custom ISO
+
+##### Using VS Code Dev Container
+1. Install VS Code with "Dev Containers" extension
+2. Clone and open: 
+   ```bash
+   git clone https://github.com/uta-lug-nuts/LnOS.git
+   cd LnOS
+   code .
+   ```
+3. Open in container: `Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
+4. Build ISO: 
+   ```bash
+   ./build-iso.sh x86_64     # Build x86_64 ISO
+   ./build-iso.sh aarch64    # Build ARM64 ISO
+   ```
+
+##### Using Local Arch Linux
+```bash
+# Install archiso
+sudo pacman -S archiso
+
+# Clone and build
+git clone https://github.com/uta-lug-nuts/LnOS.git
+cd LnOS
+./build-iso.sh x86_64
+```
+
+##### Using Docker
 ```bash
 git clone https://github.com/uta-lug-nuts/LnOS.git
+cd LnOS
+
+# Build in Arch container
+docker run --rm --privileged \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  archlinux:latest \
+  bash -c "
+    pacman -Syu --noconfirm
+    pacman -S --noconfirm archiso
+    ./build-iso.sh x86_64
+  "
 ```
 
-run and choose the target based on cpu architecture:
-```bash
-./scripts/LnOS-installer.sh --target=[x86_64 | arm]
-```
+### Development Environment
 
-4. Add CS Tools:
+To contribute to LnOS, use the VS Code dev container:
 
-After booting into the base system, clone our repo again:
-```bash
-git clone https://github.com/uta-lug-nuts/LnOS.git
-```
+1. Install VS Code with "Dev Containers" extension
+2. Clone repository: `git clone https://github.com/uta-lug-nuts/LnOS.git`
+3. Open in VS Code: `code LnOS`
+4. Reopen in container: `Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
 
-run and follow the instructions in:
-```bash
-./scripts/Environment-setup.sh
-```
+The dev container includes:
+- Arch Linux environment
+- Pre-installed archiso and build tools
+- Build aliases: `build-x86`, `build-arm`, `clean-build`
+- Shell script linting and formatting
+- Cross-platform compatibility (Windows, macOS, Linux)
 
-Done! 
+### Manual Installation
+
+1. Download Arch Linux ISO from [archlinux.org/download](https://archlinux.org/download/)
+
+2. Create bootable media using [Rufus](https://rufus.ie/en/) or [Balena Etcher](https://www.balena.io/etcher)
+
+3. Boot and install:
+   ```bash
+   git clone https://github.com/uta-lug-nuts/LnOS.git
+   ./LnOS/scripts/LnOS-installer.sh --target=x86_64
+   ``` 
 
 
 
@@ -108,17 +187,34 @@ More tools will be added based on student feedback.
 * this has seriously been amazing
 
 
+## 🛡️ Security & Digital Signatures
+
+All LnOS releases are digitally signed with GPG to ensure authenticity and integrity.
+
+**GPG Key Information:**
+- **Key ID**: `9486759312876AD7`
+- **Fingerprint**: `FF3B 2203 9FA1 CBC0 72E5 8967 9486 7593 1287 6AD7`
+- **Owner**: LnOS Development Team
+
+**Why verify signatures?**
+- Ensures files haven't been corrupted during download
+- Protects against malicious file tampering
+- Confirms files are from the official LnOS team
+- Prevents man-in-the-middle attacks
+
+**Public Key Location**: [keys/lnos-public-key.asc](https://github.com/bakkertj/LnOS/blob/main/keys/lnos-public-key.asc)
+
 ## Known Issues
 
 * Not fully reliable yet (still not even a 1.0.0 release)
-* No testing done for ARM.
-* no iso specific to the repo 
-* No GH Action pipeline test 
+* ARM64 support is work in progress (basic support implemented)
+* Limited testing on various hardware configurations
+* Some desktop environments may require additional configuration 
 
 
 ## Credits
 
 Inspired by Professor Bakker’s and UTA LUGNUTS Community of a vision for a UTA-specific distro.
 
-Built on the amazing work of the [Arch Linux community](htttps://archlinux.org).
+Built on the amazing work of the [Arch Linux community](https://archlinux.org).
 Install Files look beautiful from the wonderful tool: [GUM](https://github.com/charmbracelet/gum?tab=readme-ov-file)

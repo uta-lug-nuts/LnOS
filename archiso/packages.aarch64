@@ -1,0 +1,62 @@
+# Network installer with ARM64 virtualization compatibility
+# Core system
+base
+linux-aarch64
+linux-firmware
+
+# Filesystem support (critical for virtualization)
+btrfs-progs
+dosfstools
+e2fsprogs
+ntfs-3g
+xfsprogs
+
+# Hardware and virtualization support
+virtualbox-guest-utils-nox
+open-vm-tools
+
+# Boot and hardware
+efibootmgr
+grub
+
+# Block device utilities
+util-linux
+lvm2
+mdadm
+
+# Network essentials
+networkmanager
+dhcpcd
+iw
+wget
+curl
+
+# Installation tools
+arch-install-scripts
+parted
+gdisk
+
+# Essential utilities
+sudo
+nano
+openssh
+rsync
+
+# Debugging tools
+strace
+lsof
+
+# Loop device and archiso support
+mkinitcpio-archiso
+squashfs-tools
+
+# Additional kernel support for virtualization
+mkinitcpio
+mtools
+
+# Additional initramfs support
+linux-atm
+ppp
+
+# Your installer requirements
+gum
