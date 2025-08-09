@@ -26,9 +26,16 @@
 
 set -e
 
+# Prechecks for users that are cloning the install script to run in the archinstaller iso and not the lnos iso
 if ! command -v gum &> /dev/null; then
     echo "Installing gum..."
     pacman -Sy --noconfirm gum
+fi
+
+if ! command -v nmtui &> /dev/null; then
+    echo "Installing network manager..."
+    pacman -Sy --noconfirm networkmanager
+    NetworkManager
 fi
 
 # logging functions (only for 1 line)
@@ -44,7 +51,6 @@ gum_complete()
 {
     gum style --border normal --margin "1 2" --padding "2 4" --border-foreground 158 "$@"
 }
-
 
 # Make user connect to internet
 # make it a bit simpler and just force nmtui on them
