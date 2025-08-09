@@ -1,9 +1,8 @@
 name: Build LnOS ISO
 
-
 on:
   push:
-    branches: [ main, ISO_Updates ]
+    branches: [ main, ISO ]
     paths:
       - 'archiso/**'
       - 'scripts/**'
