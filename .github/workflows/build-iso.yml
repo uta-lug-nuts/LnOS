@@ -259,33 +259,33 @@ jobs:
                 > /mnt/utm/boot/config.txt
               
               # Create post-install script for UTM
-              cat > /mnt/utm/root/utm-setup.sh <<'"'"'EOFSCRIPT'"'"'
-#!/bin/bash
-# UTM Post-install setup script
-echo "Setting up LnOS for UTM Apple Silicon..."
-
-# Update package databases
-pacman -Sy --noconfirm
-
-# Install UTM-specific packages
-pacman -S --noconfirm \
-    linux-aarch64 \
-    mesa \
-    xf86-video-vesa \
-    spice-vdagent \
-    qemu-guest-agent
-
-# Enable services for UTM
-systemctl enable qemu-guest-agent
-systemctl enable spice-vdagentd
-
-# Run LnOS installer with Asahi profile
-cd /root/LnOS
-chmod +x LnOS-installer.sh
-echo "Run ./LnOS-installer.sh --target=asahi to complete setup"
-
-echo "UTM setup complete! Reboot to continue with LnOS installation."
-EOFSCRIPT
+              {
+                echo "#!/bin/bash"
+                echo "# UTM Post-install setup script"
+                echo "echo \"Setting up LnOS for UTM Apple Silicon...\""
+                echo ""
+                echo "# Update package databases"
+                echo "pacman -Sy --noconfirm"
+                echo ""
+                echo "# Install UTM-specific packages"
+                echo "pacman -S --noconfirm \\"
+                echo "    linux-aarch64 \\"
+                echo "    mesa \\"
+                echo "    xf86-video-vesa \\"
+                echo "    spice-vdagent \\"
+                echo "    qemu-guest-agent"
+                echo ""
+                echo "# Enable services for UTM"
+                echo "systemctl enable qemu-guest-agent"
+                echo "systemctl enable spice-vdagentd"
+                echo ""
+                echo "# Run LnOS installer with Asahi profile"
+                echo "cd /root/LnOS"
+                echo "chmod +x LnOS-installer.sh"
+                echo "echo \"Run ./LnOS-installer.sh --target=asahi to complete setup\""
+                echo ""
+                echo "echo \"UTM setup complete! Reboot to continue with LnOS installation.\""
+              } > /mnt/utm/root/utm-setup.sh
               
               chmod +x /mnt/utm/root/utm-setup.sh
               
@@ -293,10 +293,10 @@ EOFSCRIPT
               BOOT_UUID=$(blkid -s UUID -o value ${LOOP_DEV}p1)
               ROOT_UUID=$(blkid -s UUID -o value ${LOOP_DEV}p2)
               
-              cat > /mnt/utm/etc/fstab << EOF
-UUID=${ROOT_UUID} / ext4 defaults 0 1
-UUID=${BOOT_UUID} /boot vfat defaults 0 2
-EOF
+              {
+                echo "UUID=${ROOT_UUID} / ext4 defaults 0 1"
+                echo "UUID=${BOOT_UUID} /boot vfat defaults 0 2"
+              } > /mnt/utm/etc/fstab
               
               # Unmount and cleanup
               umount -R /mnt/utm
