@@ -1,3 +1,4 @@
+# What is a Tiling Window Manager ? and why is it used with arch btw
 Tiling Window Managers(WM) essentially manage the windows for your applications inside of tiles. These tiles can then be moved around through keystrokes / keybinds and allow you to utilize multiple workspaces.
 
 It's heavily a non traditional way of doing Desktop Environment computing but is very popular in the arch linux community with the rise of ricing with hyprland.
