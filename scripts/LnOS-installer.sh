@@ -70,6 +70,13 @@ setup_desktop_and_packages()
 
     gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Hello, there. Welcome to LnOs auto setup script"
 
+    # Install essential packages 
+  	gum spin --spinner dot --title "Installing developer tools needed for packages" -- pacman -S --noconfirm base-devel git wget networkmanager btrfs-progs openssh git dhcpcd networkmanager vi vim iw netcl wget curl xdg-user-dirs
+    
+    # Enable network services
+    systemctl enable dhcpcd
+    systemctl enable NetworkManager
+
     # Desktop Environment Installation
     while true; do
 		DE_CHOICE=$(gum choose --header "Choose your Desktop Environment (DE):" \
@@ -123,9 +130,6 @@ setup_desktop_and_packages()
         gum confirm "You selected: $THEME. Proceed with installation?" && break
     done
 
-    # Ensure base-devel is installed for AUR package building
-  	gum spin --spinner dot --title "Installing developer tools needed for packages" -- pacman -S --noconfirm base-devel
-
     case "$THEME" in
         "CSE")
             if [ ! -f "/root/LnOS/pacman_packages/CSE_packages.txt" ]; then
@@ -140,6 +144,13 @@ setup_desktop_and_packages()
             # AUR will most likely be short with a few packages
             # webcord, brave are the big ones that come to mind
             # the reason is id like to teach users how to properly use aur
+
+            gum style \
+                --foreground 255 --border-foreground 130 --border double \
+                --width 100 --margin "1 2" --padding "2 4" \
+                'AUR (arch user repository) is less secure because its not maintained by arch.' \
+                'LnOS Maintainers picked these packages cause their released were signed with PGP keys' \
+            gum confirm "Will you proceed to download AUR packages ? (i.e. brave, webcord)" || return
             
             # clone paru and build
             git clone https://aur.archlinux.org/paru.git
@@ -149,8 +160,10 @@ setup_desktop_and_packages()
             cd ..
             rm -rf paru
 
+
+            gum_echo "Please review the packages you're about to download"
             PARU_PACKAGES=$(cat /root/LnOS/paru_packages/paru_packages.txt)
-            paru -S 
+            paru -S "$PARU_PACKAGES"
 
 
             ;;
@@ -159,11 +172,32 @@ setup_desktop_and_packages()
             if [ -n "$PACMAN_PACKAGES" ]; then
                 gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm "$PACMAN_PACKAGES"
             fi
+
+            gum_echo "AUR (arch user repository) is less secure because it's not maintained by arch. LnOS Maintainers picked these packages cause their released were signed with PGP keys"
+            gum confirm "Will you proceed to download AUR packages ? (i.e. brave, webcord)" || return
+            
+            # clone paru and build
+            git clone https://aur.archlinux.org/paru.git
+            cd paru
+            makepkg -si
+            # exit and clean up paru
+            cd ..
+            rm -rf paru
+
+
+            gum_echo "Please enter and review the packages you're about to download"
+            PARU_PACKAGES=$(gum input --header "Enter the paru packages you want (space-seperated):")
+            if [ -n "$PARU_PACKAGES" ]; then
+                paru -S "$PARU_PACKAGES"
+            fi
+            
             ;;
     esac
 
-    # Clean up AUR build directory
-    # rm -rf "$AUR_DIR"
+    # make basic user directories
+    cd ~
+    mkdir Downloads Pictures Videos Music Documents Public Desktop
+    chown "$username:$username" Downloads Pictures Videos Music Documents Public Desktop 
 }
 
 # Function to configure the system (common for both architectures)
@@ -233,14 +267,10 @@ configure_system()
     echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-wheel
     chmod 440 /etc/sudoers.d/10-wheel
 
-    # Update and Install essential packages
+    # Update 
     pacman -Syu --noconfirm
-    pacman -S --noconfirm btrfs-progs openssh git dhcpcd networkmanager vi vim iw netcl wget curl xdg-user-dirs
 
-    # Enable network services
-    systemctl enable dhcpcd
-    systemctl enable NetworkManager
-
+    
     # setup the desktop environment
     setup_desktop_and_packages "$username"
 
