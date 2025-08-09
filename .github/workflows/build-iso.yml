@@ -243,7 +243,7 @@ jobs:
               cp README.md LICENSE /mnt/utm/root/LnOS/ 2>/dev/null || true
               
               # Create UTM-specific boot configuration
-              cat > /mnt/utm/boot/config.txt << "EOL"
+              cat > /mnt/utm/boot/config.txt << 'EOL'
 # UTM Apple Silicon VM Configuration
 # Enable device tree overlay support
 # dtoverlay=vc4-kms-v3d
