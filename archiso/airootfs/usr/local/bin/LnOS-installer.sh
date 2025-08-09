@@ -35,6 +35,9 @@ else
 CLONED=0
 fi
 
+# init pacman key
+pacman-key --init
+
 if ! command -v gum &> /dev/null; then
     echo "Installing gum..."
     pacman -Sy --noconfirm gum
@@ -220,11 +223,6 @@ setup_desktop_and_packages()
             
             ;;
     esac
-
-    # make basic user directories
-    cd ~
-    mkdir Downloads Pictures Videos Music Documents Public Desktop
-    chown "$username:$username" Downloads Pictures Videos Music Documents Public Desktop 
 }
 
 # Function to configure the system (common for both architectures)
@@ -446,7 +444,7 @@ install_x86_64()
 
     # Install base system (zen kernel may be cool, but after some research about hardening, the linux hardened kernel makes 10x more sense for students and will be the default)
     gum_echo "Installing base system, will take some time (grab a coffee)"
-    pacstrap /mnt base linux-hardened linux-firmware btrfs-progs
+    pacstrap /mnt base linux-hardened linux-firmware btrfs-progs base-devel git wget networkmanager btrfs-progs openssh git dhcpcd networkmanager vi vim iw wget curl xdg-user-dirs
 
     gum_echo "base system install done!"
 
