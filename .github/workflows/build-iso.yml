@@ -189,8 +189,8 @@ jobs:
           # Create UTM-compatible disk image
           echo "=== CREATING UTM DISK IMAGE ==="
           
-          # Create 1.5GB raw disk image for UTM (matches ARM build size)
-          dd if=/dev/zero of=lnos-utm-apple-silicon.img bs=1M count=1536
+          # Create 4GB raw disk image for UTM (increased from 1.5GB to prevent space issues)
+          dd if=/dev/zero of=lnos-utm-apple-silicon.img bs=1M count=4096
           
           # Create loop device and partition the disk
           LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
