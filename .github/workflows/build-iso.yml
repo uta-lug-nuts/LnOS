@@ -195,11 +195,11 @@ jobs:
           # Create loop device and partition the disk
           LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
           
-          # Partition using MBR (like ARM build, not UEFI GPT)
-          sudo parted ${LOOP_DEV} mklabel msdos
-          sudo parted ${LOOP_DEV} mkpart primary fat32 1MiB 257MiB
-          sudo parted ${LOOP_DEV} mkpart primary ext4 257MiB 100%
-          sudo parted ${LOOP_DEV} set 1 boot on
+          # Partition using GPT for UEFI boot (required for UTM on Apple Silicon)
+          sudo parted ${LOOP_DEV} mklabel gpt
+          sudo parted ${LOOP_DEV} mkpart ESP fat32 1MiB 513MiB
+          sudo parted ${LOOP_DEV} set 1 esp on
+          sudo parted ${LOOP_DEV} mkpart root ext4 513MiB 100%
           
           # Refresh partition table
           sudo partprobe ${LOOP_DEV}
@@ -332,9 +332,28 @@ jobs:
           DHCP=yes
           EOF
           
+          # Mount necessary filesystems for chroot
+          sudo mount --bind /dev /mnt/utm/dev
+          sudo mount --bind /proc /mnt/utm/proc
+          sudo mount --bind /sys /mnt/utm/sys
+          
           # Initialize pacman keyring
           sudo chroot /mnt/utm pacman-key --init
           sudo chroot /mnt/utm pacman-key --populate archlinuxarm
+          
+          # Install UEFI bootloader and kernel
+          echo "=== INSTALLING BOOTLOADER ==="
+          sudo chroot /mnt/utm pacman -Sy --noconfirm
+          sudo chroot /mnt/utm pacman -S --noconfirm linux-aarch64 grub efibootmgr
+          
+          # Install GRUB to EFI system partition
+          sudo chroot /mnt/utm grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=GRUB --recheck
+          
+          # Generate GRUB configuration
+          sudo chroot /mnt/utm grub-mkconfig -o /boot/grub/grub.cfg
+          
+          # Unmount chroot filesystems
+          sudo umount /mnt/utm/sys /mnt/utm/proc /mnt/utm/dev
           
           # Create fstab
           BOOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p1)
