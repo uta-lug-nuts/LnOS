@@ -208,31 +208,29 @@ jobs:
           echo "=== PARTITION TABLE CREATED ==="
           sudo parted ${LOOP_DEV} --script print
           
-          # Properly sync and cleanup before partition operations
+          # Clean up any existing device mappings and loop devices
+          echo "=== CLEANING UP EXISTING DEVICES ==="
+          sudo dmsetup remove_all 2>/dev/null || true
+          sudo kpartx -dv ${LOOP_DEV} 2>/dev/null || true
+          sudo losetup -d ${LOOP_DEV} 2>/dev/null || true
+          
+          # Wait for cleanup to complete
           sync
           sudo udevadm settle
-          
-          # Force kernel to re-read partition table with cleanup
-          sudo partprobe ${LOOP_DEV}
-          sudo kpartx -av ${LOOP_DEV} || true
-          
-          # Wait longer for udev to settle
-          sudo udevadm settle
-          sleep 5
-          
-          # Clean up any existing device mappings that might be interfering
-          sudo dmsetup remove_all 2>/dev/null || true
-          sudo losetup -d ${LOOP_DEV} 2>/dev/null || true
+          sleep 2
           
           # Re-create the loop device cleanly
           LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
-          echo "Re-created loop device: ${LOOP_DEV}"
+          echo "Using clean loop device: ${LOOP_DEV}"
           
-          # Force partition detection again
+          # Only use partprobe (avoid kpartx to prevent conflicts)
           sudo partprobe ${LOOP_DEV}
-          sudo kpartx -av ${LOOP_DEV}
           sudo udevadm settle
           sleep 3
+          
+          # Verify kernel detected partitions
+          echo "=== KERNEL PARTITION DETECTION ==="
+          cat /proc/partitions | grep loop0
           
           # Verify partitions exist
           echo "=== VERIFYING PARTITIONS ==="
@@ -243,85 +241,78 @@ jobs:
           sudo fuser -v ${LOOP_DEV}p1 2>/dev/null || echo "No processes using ${LOOP_DEV}p1"
           sudo fuser -v ${LOOP_DEV}p2 2>/dev/null || echo "No processes using ${LOOP_DEV}p2"
           
-          # Format partitions with retries
+          # Ensure no processes are using the devices
+          echo "=== ENSURING CLEAN DEVICE STATE ==="
+          sudo fuser -k ${LOOP_DEV}p1 2>/dev/null || true
+          sudo fuser -k ${LOOP_DEV}p2 2>/dev/null || true
+          sleep 1
+          
+          # Format partitions with force flag and better error handling
           echo "=== FORMATTING EFI SYSTEM PARTITION ==="
-          for i in {1..3}; do
-              if sudo mkfs.fat -F32 -n "LNOS_EFI" ${LOOP_DEV}p1; then
-                  echo "EFI partition formatted successfully"
-                  break
-              else
-                  echo "Formatting attempt $i failed, retrying..."
-                  sleep 2
-                  sudo udevadm settle
-              fi
-          done
+          sudo wipefs -a ${LOOP_DEV}p1 2>/dev/null || true
+          if ! sudo mkfs.fat -F32 -n "LNOS_EFI" ${LOOP_DEV}p1; then
+              echo "ERROR: Failed to format EFI partition"
+              echo "Checking device status:"
+              sudo lsof ${LOOP_DEV}p1 2>/dev/null || echo "No processes using device"
+              sudo dmsetup info 2>/dev/null || echo "No device mapper info"
+              exit 1
+          fi
+          echo "EFI partition formatted successfully"
           
           echo "=== FORMATTING ROOT PARTITION ==="
-          for i in {1..3}; do
-              if sudo mkfs.ext4 -L "LNOS_ROOT" ${LOOP_DEV}p2; then
-                  echo "Root partition formatted successfully"
-                  break
-              else
-                  echo "Formatting attempt $i failed, retrying..."
-                  sleep 2
-                  sudo udevadm settle
-              fi
-          done
+          sudo wipefs -a ${LOOP_DEV}p2 2>/dev/null || true
+          if ! sudo mkfs.ext4 -F -L "LNOS_ROOT" ${LOOP_DEV}p2; then
+              echo "ERROR: Failed to format root partition"
+              echo "Checking device status:"
+              sudo lsof ${LOOP_DEV}p2 2>/dev/null || echo "No processes using device"
+              sudo dmsetup info 2>/dev/null || echo "No device mapper info"
+              exit 1
+          fi
+          echo "Root partition formatted successfully"
           
           # Verify formatting
           echo "=== VERIFYING FILESYSTEM CREATION ==="
           sudo blkid ${LOOP_DEV}p1
           sudo blkid ${LOOP_DEV}p2
           
-          # Mount partitions with verification and retries
+          # Mount partitions with proper cleanup first
           echo "=== MOUNTING PARTITIONS ==="
           
-          # Wait for devices to be ready
-          sudo udevadm settle
-          sleep 2
+          # Ensure mount points are clean
+          sudo umount /mnt/utm/boot 2>/dev/null || true
+          sudo umount /mnt/utm 2>/dev/null || true
+          sudo rm -rf /mnt/utm
           
+          # Wait for devices to be fully ready
+          sudo udevadm settle
+          sleep 3
+          
+          # Create clean mount point
           sudo mkdir -p /mnt/utm
           
-          # Mount root partition with retries
-          for i in {1..3}; do
-              if sudo mount ${LOOP_DEV}p2 /mnt/utm; then
-                  echo "Root partition mounted successfully"
-                  break
-              else
-                  echo "Root mount attempt $i failed, retrying..."
-                  sleep 2
-                  sudo umount /mnt/utm 2>/dev/null || true
-              fi
-          done
-          
-          # Verify root mount
-          if ! mountpoint -q /mnt/utm; then
-              echo "ERROR: Failed to mount root partition after retries"
+          # Mount root partition
+          if ! sudo mount ${LOOP_DEV}p2 /mnt/utm; then
+              echo "ERROR: Failed to mount root partition"
+              echo "Device information:"
               sudo lsblk ${LOOP_DEV}
+              sudo blkid ${LOOP_DEV}p2
+              echo "Checking for conflicting mounts:"
+              sudo mount | grep loop0 || echo "No loop0 mounts found"
               exit 1
           fi
+          echo "Root partition mounted successfully"
           
+          # Create boot directory and mount EFI partition
           sudo mkdir -p /mnt/utm/boot
           
-          # Mount EFI partition with retries
-          for i in {1..3}; do
-              if sudo mount -t vfat ${LOOP_DEV}p1 /mnt/utm/boot; then
-                  echo "EFI partition mounted successfully"
-                  break
-              else
-                  echo "EFI mount attempt $i failed, retrying..."
-                  sleep 2
-                  sudo umount /mnt/utm/boot 2>/dev/null || true
-              fi
-          done
-          
-          # Verify EFI mount
-          if ! mountpoint -q /mnt/utm/boot; then
-              echo "ERROR: Failed to mount EFI partition after retries"
+          if ! sudo mount -t vfat ${LOOP_DEV}p1 /mnt/utm/boot; then
+              echo "ERROR: Failed to mount EFI partition"
+              echo "Device information:"
               sudo lsblk ${LOOP_DEV}
               sudo blkid ${LOOP_DEV}p1
               exit 1
           fi
+          echo "EFI partition mounted successfully"
           
           # Test write access to EFI partition
           echo "=== TESTING EFI PARTITION ACCESS ==="
