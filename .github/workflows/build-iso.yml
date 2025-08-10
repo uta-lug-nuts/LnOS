@@ -294,8 +294,9 @@ jobs:
           Architecture = aarch64
           CheckSpace
           ParallelDownloads = 5
-          SigLevel    = DatabaseRequired
+          SigLevel    = Required DatabaseOptional
           LocalFileSigLevel = Optional
+          RemoteFileSigLevel = Required
           
           [core]
           Include = /etc/pacman.d/mirrorlist
@@ -351,18 +352,25 @@ jobs:
           # Copy host DNS resolution into chroot for network access
           sudo cp /etc/resolv.conf /mnt/utm/etc/resolv.conf
           
-          # Initialize pacman keyring (essential only)
+          # Initialize pacman keyring and update package databases
+          echo "=== INITIALIZING PACMAN KEYRING ==="
           sudo chroot /mnt/utm pacman-key --init
           sudo chroot /mnt/utm pacman-key --populate archlinuxarm
           
-          # Install Linux kernel and essential packages
-          echo "=== INSTALLING LINUX KERNEL ==="
-          sudo chroot /mnt/utm pacman -S --noconfirm linux linux-firmware base base-devel
+          # Refresh all keys to ensure they're up to date
+          echo "=== REFRESHING GPG KEYS ==="
+          sudo chroot /mnt/utm pacman-key --refresh-keys || true
+          
+          # Update package databases with proper signature handling
+          echo "=== UPDATING PACKAGE DATABASES ==="
+          sudo chroot /mnt/utm pacman -Sy --noconfirm
+          
+          # Install essential packages first
+          echo "=== INSTALLING BASE SYSTEM ==="
+          sudo chroot /mnt/utm pacman -S --noconfirm base linux linux-firmware
           
           # Install GRUB ARM64 EFI bootloader
           echo "=== INSTALLING ARM64 EFI BOOTLOADER ==="
-          
-          # Install GRUB for ARM64 EFI
           sudo chroot /mnt/utm pacman -S --noconfirm grub efibootmgr
           
           # Install GRUB to EFI system partition
