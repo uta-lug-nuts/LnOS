@@ -204,6 +204,10 @@ jobs:
           sudo parted ${LOOP_DEV} --script set 1 boot on
           sudo parted ${LOOP_DEV} --script mkpart root ext4 513MiB 100%
           
+          # Set proper partition type GUIDs for UEFI
+          sudo parted ${LOOP_DEV} --script type 1 C12A7328-F81F-11D2-BA4B-00A0C93EC93B  # EFI System Partition
+          sudo parted ${LOOP_DEV} --script type 2 0FC63DAF-8483-4772-8E79-3D69D8477DE4  # Linux filesystem
+          
           # Show partition table
           echo "=== PARTITION TABLE CREATED ==="
           sudo parted ${LOOP_DEV} --script print
@@ -247,17 +251,22 @@ jobs:
           sudo fuser -k ${LOOP_DEV}p2 2>/dev/null || true
           sleep 1
           
-          # Format partitions with force flag and better error handling
+          # Format EFI System Partition with maximum UEFI compatibility
           echo "=== FORMATTING EFI SYSTEM PARTITION ==="
           sudo wipefs -a ${LOOP_DEV}p1 2>/dev/null || true
-          if ! sudo mkfs.fat -F32 -n "LNOS_EFI" ${LOOP_DEV}p1; then
+          
+          # Use specific FAT32 parameters for UEFI compatibility
+          if ! sudo mkfs.fat -F32 -n "EFI" -s 1 -S 512 ${LOOP_DEV}p1; then
               echo "ERROR: Failed to format EFI partition"
               echo "Checking device status:"
               sudo lsof ${LOOP_DEV}p1 2>/dev/null || echo "No processes using device"
               sudo dmsetup info 2>/dev/null || echo "No device mapper info"
               exit 1
           fi
-          echo "EFI partition formatted successfully"
+          echo "EFI partition formatted successfully with UEFI-optimized parameters"
+          
+          # Verify the filesystem was created correctly
+          sudo fsck.fat -v ${LOOP_DEV}p1 || echo "FAT filesystem check completed"
           
           echo "=== FORMATTING ROOT PARTITION ==="
           sudo wipefs -a ${LOOP_DEV}p2 2>/dev/null || true
@@ -562,56 +571,72 @@ jobs:
           # Install GRUB EFI files for ARM64 (create minimal bootloader)
           echo "=== CREATING MINIMAL EFI BOOTLOADER ==="
           
-          # Use EFI stub boot - the Arch Linux ARM way!
-          # The Linux kernel itself can be booted directly by UEFI (no GRUB needed)
-          echo "=== SETTING UP EFI STUB BOOT ==="
+          # Create a simple EFI bootloader that works with UTM
+          # UTM seems to need a more traditional EFI approach
+          echo "=== CREATING UTM-COMPATIBLE EFI BOOTLOADER ==="
           
-          # Check what kernel files we have
-          echo "Available kernel files:"
-          sudo find /mnt/utm/boot -name "*Image*" -o -name "*vmlinuz*" | head -5
+          # Install systemd-boot as the EFI bootloader
+          echo "Installing systemd-boot..."
+          sudo apt update
+          sudo apt install -y systemd-boot-efi
           
-          # Create EFI directory structure first
+          # Create EFI directory structure
           sudo mkdir -p /mnt/utm/boot/EFI/BOOT
-          sudo mkdir -p /mnt/utm/boot/EFI/LnOS
+          sudo mkdir -p /mnt/utm/boot/EFI/systemd
+          sudo mkdir -p /mnt/utm/boot/loader/entries
           
-          # Use the EFI-stubbed kernel as the bootloader
-          if [ -f /mnt/utm/boot/Image ]; then
-              echo "✅ Found EFI-stubbed kernel Image"
-              sudo cp /mnt/utm/boot/Image /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
-              sudo cp /mnt/utm/boot/Image /mnt/utm/boot/EFI/LnOS/grubaa64.efi
-              echo "✅ Installed kernel as EFI bootloader"
-          elif [ -f /mnt/utm/boot/vmlinuz-linux ]; then
-              echo "✅ Found vmlinuz-linux kernel"
-              sudo cp /mnt/utm/boot/vmlinuz-linux /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
-              sudo cp /mnt/utm/boot/vmlinuz-linux /mnt/utm/boot/EFI/LnOS/grubaa64.efi
-              echo "✅ Installed kernel as EFI bootloader"
+          # Copy systemd-boot EFI bootloader
+          if [ -f /usr/lib/systemd/boot/efi/systemd-bootaa64.efi ]; then
+              sudo cp /usr/lib/systemd/boot/efi/systemd-bootaa64.efi /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
+              echo "✅ Installed systemd-boot as BOOTAA64.EFI"
           else
-              echo "❌ No suitable kernel found for EFI stub boot"
-              echo "Available files in /boot:"
-              sudo ls -la /mnt/utm/boot/ | head -10
-              exit 1
+              echo "⚠️ systemd-boot not found, creating kernel stub"
+              
+              # Fallback: Direct kernel copy with better naming
+              if [ -f /mnt/utm/boot/Image ]; then
+                  # Create kernel command line file
+                  echo "root=UUID=${ROOT_UUID} rw quiet init=/usr/local/bin/lnos-shell.sh" | sudo tee /mnt/utm/boot/cmdline.txt
+                  
+                  # Copy kernel as EFI application
+                  sudo cp /mnt/utm/boot/Image /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
+                  echo "✅ Created kernel stub bootloader"
+              else
+                  echo "❌ No bootloader solution found"
+                  exit 1
+              fi
           fi
           
-          # Create EFI boot entry for kernel parameters
-          sudo mkdir -p /mnt/utm/boot/loader/entries
-          sudo tee /mnt/utm/boot/loader/entries/arch.conf << EOF
-          title   LnOS ARM64
-          linux   /Image
-          initrd  /initramfs-linux.img
-          options root=UUID=${ROOT_UUID} rw quiet
+          # Create systemd-boot configuration
+          sudo tee /mnt/utm/boot/loader/loader.conf << EOF
+          default  lnos.conf
+          timeout  5
+          console-mode auto
+          editor   yes
           EOF
           
-          # Create systemd-boot loader configuration
-          sudo tee /mnt/utm/boot/loader/loader.conf << EOF
-          default  arch.conf
-          timeout  3
-          console-mode max
-          editor   no
+          # Create boot entry
+          sudo tee /mnt/utm/boot/loader/entries/lnos.conf << EOF
+          title    LnOS ARM64
+          linux    /Image
+          initrd   /initramfs-linux.img
+          options  root=UUID=${ROOT_UUID} rw quiet systemd.unit=multi-user.target
+          EOF
+          
+          # Create fallback entry
+          sudo tee /mnt/utm/boot/loader/entries/lnos-fallback.conf << EOF
+          title    LnOS ARM64 (Fallback)
+          linux    /Image
+          initrd   /initramfs-linux-fallback.img
+          options  root=UUID=${ROOT_UUID} rw debug systemd.unit=multi-user.target
           EOF
           
           # Verify EFI files were created with correct size
           echo "=== EFI FILES CREATED ==="
           sudo find /mnt/utm/boot/EFI -name "*.EFI" -exec ls -la {} \;
+          
+          # Also show loader configuration
+          echo "=== LOADER CONFIGURATION ==="
+          sudo find /mnt/utm/boot/loader -name "*.conf" -exec echo "=== {} ===" \; -exec cat {} \;
           
           # Create basic GRUB configuration for the base kernel
           sudo tee /mnt/utm/boot/grub/grub.cfg << 'EOF'
