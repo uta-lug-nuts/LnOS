@@ -570,6 +570,10 @@ jobs:
           echo "Available kernel files:"
           sudo find /mnt/utm/boot -name "*Image*" -o -name "*vmlinuz*" | head -5
           
+          # Create EFI directory structure first
+          sudo mkdir -p /mnt/utm/boot/EFI/BOOT
+          sudo mkdir -p /mnt/utm/boot/EFI/LnOS
+          
           # Use the EFI-stubbed kernel as the bootloader
           if [ -f /mnt/utm/boot/Image ]; then
               echo "✅ Found EFI-stubbed kernel Image"
