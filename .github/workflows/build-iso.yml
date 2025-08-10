@@ -221,6 +221,11 @@ jobs:
           # Extract Arch Linux ARM for aarch64 (already downloaded)
           sudo tar -xzf /tmp/archlinuxarm.tar.gz -C /mnt/utm
           
+          # Check what kernel files are available
+          echo "=== CHECKING AVAILABLE KERNEL FILES ==="
+          sudo find /mnt/utm/boot -name "*" -type f | head -20
+          sudo ls -la /mnt/utm/boot/ || echo "No boot directory found"
+          
           # Copy LnOS files (match ARM build structure)
           sudo mkdir -p /mnt/utm/root/LnOS/scripts
           sudo cp -r scripts/pacman_packages /mnt/utm/root/LnOS/scripts/
@@ -441,15 +446,54 @@ jobs:
           # Enable the first-boot service
           sudo chroot /mnt/utm systemctl enable lnos-first-boot.service
           
-          # Create basic GRUB configuration for the base kernel that's already in the rootfs
+          # Create EFI boot structure that UEFI firmware can find
+          sudo mkdir -p /mnt/utm/boot/EFI/BOOT
           sudo mkdir -p /mnt/utm/boot/grub
+          
+          # Install GRUB EFI files for ARM64 (create minimal bootloader)
+          echo "=== CREATING MINIMAL EFI BOOTLOADER ==="
+          
+          # Create a basic GRUB EFI image using grub-mkimage
+          # This creates the BOOTAA64.EFI file that UEFI firmware looks for
+          docker run --rm -v /mnt/utm:/target archlinux:latest bash -c "
+            pacman -Sy --noconfirm grub efibootmgr
+            
+            # Create GRUB EFI bootloader for ARM64
+            grub-mkimage -O arm64-efi -o /tmp/grubaa64.efi \
+              -p /boot/grub \
+              part_gpt part_msdos fat ext2 ext4 normal boot linux \
+              configfile loadenv ls search search_fs_uuid \
+              search_fs_file search_label echo read halt reboot \
+              test true false help cat
+            
+            # Install to EFI/BOOT directory (fallback path)
+            cp /tmp/grubaa64.efi /target/boot/EFI/BOOT/BOOTAA64.EFI
+            
+            # Also install to EFI/LnOS directory 
+            mkdir -p /target/boot/EFI/LnOS
+            cp /tmp/grubaa64.efi /target/boot/EFI/LnOS/grubaa64.efi
+            
+            # Verify files were created
+            echo '=== EFI FILES CREATED ==='
+            find /target/boot/EFI -name '*.efi' -o -name '*.EFI'
+          "
+          
+          # Create basic GRUB configuration for the base kernel
           sudo tee /mnt/utm/boot/grub/grub.cfg << 'EOF'
           set timeout=5
           set default=0
           
           menuentry 'LnOS ARM64' {
-              linux /boot/Image root=UUID=PLACEHOLDER_ROOT_UUID rw
-              initrd /boot/initramfs-linux.img
+              search --no-floppy --fs-uuid --set=root PLACEHOLDER_ROOT_UUID
+              linux /boot/Image root=UUID=PLACEHOLDER_ROOT_UUID rw quiet
+              if [ -f /boot/initramfs-linux.img ]; then
+                  initrd /boot/initramfs-linux.img
+              fi
+          }
+          
+          menuentry 'LnOS ARM64 (fallback)' {
+              search --no-floppy --fs-uuid --set=root PLACEHOLDER_ROOT_UUID  
+              linux /boot/Image root=UUID=PLACEHOLDER_ROOT_UUID rw init=/bin/bash
           }
           EOF
           
@@ -476,6 +520,24 @@ jobs:
           
           # Update GRUB configuration with real root UUID
           sudo sed -i "s/PLACEHOLDER_ROOT_UUID/${ROOT_UUID}/g" /mnt/utm/boot/grub/grub.cfg
+          
+          # Create a debug script for EFI troubleshooting
+          sudo tee /mnt/utm/root/debug-efi.sh << 'EOF'
+          #!/bin/bash
+          echo "=== EFI DEBUG INFORMATION ==="
+          echo "Boot partition contents:"
+          find /boot -type f | sort
+          echo ""
+          echo "EFI directory structure:"
+          find /boot/EFI -type f 2>/dev/null | sort || echo "No EFI directory"
+          echo ""
+          echo "Partition information:"
+          lsblk
+          echo ""
+          echo "UEFI variables (if available):"
+          efibootmgr 2>/dev/null || echo "efibootmgr not available"
+          EOF
+          sudo chmod +x /mnt/utm/root/debug-efi.sh
           
           # Final cleanup - force kill any remaining processes
           echo "=== FINAL CLEANUP ==="
