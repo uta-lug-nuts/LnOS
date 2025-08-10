@@ -196,17 +196,34 @@ jobs:
           LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
           echo "Using loop device: ${LOOP_DEV}"
           
-          # Partition using GPT for UEFI boot (required for UTM on Apple Silicon)
-          echo "=== CREATING GPT PARTITION TABLE ==="
-          sudo parted ${LOOP_DEV} --script mklabel gpt
-          sudo parted ${LOOP_DEV} --script mkpart ESP fat32 1MiB 513MiB
-          sudo parted ${LOOP_DEV} --script set 1 esp on
-          sudo parted ${LOOP_DEV} --script set 1 boot on
-          sudo parted ${LOOP_DEV} --script mkpart root ext4 513MiB 100%
+          # Use fdisk instead of parted for better UTM compatibility
+          echo "=== CREATING MBR PARTITION TABLE (UTM Compatible) ==="
+          sudo fdisk ${LOOP_DEV} << 'FDISK_COMMANDS'
+o
+n
+p
+1
+2048
+1048575
+t
+c
+a
+1
+n
+p
+2
+1048576
+
+t
+2
+83
+w
+FDISK_COMMANDS
           
-          # Set proper partition type GUIDs for UEFI
-          sudo parted ${LOOP_DEV} --script type 1 C12A7328-F81F-11D2-BA4B-00A0C93EC93B  # EFI System Partition
-          sudo parted ${LOOP_DEV} --script type 2 0FC63DAF-8483-4772-8E79-3D69D8477DE4  # Linux filesystem
+          echo "=== CONVERTING TO GPT FOR UEFI ==="
+          sudo sgdisk -g ${LOOP_DEV}
+          sudo sgdisk -t 1:ef00 ${LOOP_DEV}
+          sudo sgdisk -t 2:8300 ${LOOP_DEV}
           
           # Show partition table
           echo "=== PARTITION TABLE CREATED ==="
@@ -251,22 +268,19 @@ jobs:
           sudo fuser -k ${LOOP_DEV}p2 2>/dev/null || true
           sleep 1
           
-          # Format EFI System Partition with maximum UEFI compatibility
+          # Format EFI System Partition with simple, proven parameters
           echo "=== FORMATTING EFI SYSTEM PARTITION ==="
           sudo wipefs -a ${LOOP_DEV}p1 2>/dev/null || true
           
-          # Use specific FAT32 parameters for UEFI compatibility
-          if ! sudo mkfs.fat -F32 -n "EFI" -s 1 -S 512 ${LOOP_DEV}p1; then
+          # Use the simplest possible FAT32 format that UEFI universally supports
+          if ! sudo mkfs.vfat -F32 ${LOOP_DEV}p1; then
               echo "ERROR: Failed to format EFI partition"
               echo "Checking device status:"
               sudo lsof ${LOOP_DEV}p1 2>/dev/null || echo "No processes using device"
               sudo dmsetup info 2>/dev/null || echo "No device mapper info"
               exit 1
           fi
-          echo "EFI partition formatted successfully with UEFI-optimized parameters"
-          
-          # Verify the filesystem was created correctly
-          sudo fsck.fat -v ${LOOP_DEV}p1 || echo "FAT filesystem check completed"
+          echo "EFI partition formatted successfully"
           
           echo "=== FORMATTING ROOT PARTITION ==="
           sudo wipefs -a ${LOOP_DEV}p2 2>/dev/null || true
