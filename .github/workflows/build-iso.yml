@@ -194,26 +194,66 @@ jobs:
           
           # Create loop device and partition the disk
           LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
+          echo "Using loop device: ${LOOP_DEV}"
           
           # Partition using GPT for UEFI boot (required for UTM on Apple Silicon)
-          sudo parted ${LOOP_DEV} mklabel gpt
-          sudo parted ${LOOP_DEV} mkpart ESP fat32 1MiB 513MiB
-          sudo parted ${LOOP_DEV} set 1 esp on
-          sudo parted ${LOOP_DEV} mkpart root ext4 513MiB 100%
+          echo "=== CREATING GPT PARTITION TABLE ==="
+          sudo parted ${LOOP_DEV} --script mklabel gpt
+          sudo parted ${LOOP_DEV} --script mkpart ESP fat32 1MiB 513MiB
+          sudo parted ${LOOP_DEV} --script set 1 esp on
+          sudo parted ${LOOP_DEV} --script set 1 boot on
+          sudo parted ${LOOP_DEV} --script mkpart root ext4 513MiB 100%
           
-          # Refresh partition table
+          # Show partition table
+          echo "=== PARTITION TABLE CREATED ==="
+          sudo parted ${LOOP_DEV} --script print
+          
+          # Force kernel to re-read partition table
           sudo partprobe ${LOOP_DEV}
-          sleep 2
+          sudo kpartx -av ${LOOP_DEV} || true
+          sleep 3
           
-          # Format partitions
-          sudo mkfs.fat -F32 ${LOOP_DEV}p1
-          sudo mkfs.ext4 ${LOOP_DEV}p2
+          # Verify partitions exist
+          echo "=== VERIFYING PARTITIONS ==="
+          ls -la ${LOOP_DEV}*
           
-          # Mount partitions
+          # Format partitions with explicit options
+          echo "=== FORMATTING EFI SYSTEM PARTITION ==="
+          sudo mkfs.fat -F32 -n "LNOS_EFI" ${LOOP_DEV}p1
+          
+          echo "=== FORMATTING ROOT PARTITION ==="
+          sudo mkfs.ext4 -L "LNOS_ROOT" ${LOOP_DEV}p2
+          
+          # Verify formatting
+          echo "=== VERIFYING FILESYSTEM CREATION ==="
+          sudo blkid ${LOOP_DEV}p1
+          sudo blkid ${LOOP_DEV}p2
+          
+          # Mount partitions with verification
+          echo "=== MOUNTING PARTITIONS ==="
           sudo mkdir -p /mnt/utm
           sudo mount ${LOOP_DEV}p2 /mnt/utm
+          
+          # Verify root mount
+          if ! mountpoint -q /mnt/utm; then
+              echo "ERROR: Failed to mount root partition"
+              exit 1
+          fi
+          
           sudo mkdir -p /mnt/utm/boot
-          sudo mount ${LOOP_DEV}p1 /mnt/utm/boot
+          sudo mount -t vfat ${LOOP_DEV}p1 /mnt/utm/boot
+          
+          # Verify EFI mount
+          if ! mountpoint -q /mnt/utm/boot; then
+              echo "ERROR: Failed to mount EFI partition"
+              exit 1
+          fi
+          
+          # Test write access to EFI partition
+          echo "=== TESTING EFI PARTITION ACCESS ==="
+          sudo touch /mnt/utm/boot/test_file
+          sudo rm -f /mnt/utm/boot/test_file
+          echo "EFI partition is writable"
           
           # Install base Arch Linux ARM system
           echo "=== INSTALLING BASE SYSTEM ==="
@@ -520,6 +560,20 @@ jobs:
           
           # Update GRUB configuration with real root UUID
           sudo sed -i "s/PLACEHOLDER_ROOT_UUID/${ROOT_UUID}/g" /mnt/utm/boot/grub/grub.cfg
+          
+          # Final verification of EFI structure
+          echo "=== FINAL EFI STRUCTURE VERIFICATION ==="
+          echo "Boot partition contents:"
+          sudo find /mnt/utm/boot -type f | sort
+          echo ""
+          echo "EFI directory structure:"
+          sudo find /mnt/utm/boot/EFI -type f 2>/dev/null | sort || echo "No EFI directory found"
+          echo ""
+          echo "Checking BOOTAA64.EFI:"
+          sudo ls -la /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI 2>/dev/null || echo "BOOTAA64.EFI not found"
+          echo ""
+          echo "Checking file permissions:"
+          sudo ls -la /mnt/utm/boot/EFI/BOOT/ 2>/dev/null || echo "EFI/BOOT directory not accessible"
           
           # Create a debug script for EFI troubleshooting
           sudo tee /mnt/utm/root/debug-efi.sh << 'EOF'
