@@ -228,19 +228,34 @@ jobs:
           sudo chmod +x /mnt/utm/root/LnOS/scripts/LnOS-installer.sh
           sudo cp README.md LICENSE /mnt/utm/root/LnOS/ 2>/dev/null || true
           
-          # Create the LnOS auto-start shell script for UTM (matches ARM build)
-          sudo tee /mnt/utm/usr/local/bin/lnos-shell.sh << 'EOF'
+          # Create the LnOS auto-start service that runs after first-boot setup
+          sudo tee /mnt/utm/etc/systemd/system/lnos-installer.service << 'EOF'
+          [Unit]
+          Description=LnOS Installer Service
+          After=lnos-first-boot.service
+          Requires=lnos-first-boot.service
+          
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/lnos-installer-wrapper.sh
+          RemainAfterExit=yes
+          StandardOutput=journal+console
+          StandardError=journal+console
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Create the LnOS installer wrapper script
+          sudo tee /mnt/utm/usr/local/bin/lnos-installer-wrapper.sh << 'EOF'
           #!/bin/bash
           
-          # LnOS Shell for UTM ARM64 - runs installer once then removes itself
+          # LnOS Installer Wrapper for UTM ARM64 - runs after system setup is complete
           
           echo "=========================================="
           echo "      Welcome to LnOS UTM ARM64 Environment"
           echo "=========================================="
           echo ""
-          
-          # Wait a moment for system to settle
-          sleep 2
           
           # Check if installer exists and run it
           if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
@@ -248,38 +263,27 @@ jobs:
               chmod +x ./LnOS-installer.sh
               echo "Starting LnOS installer..."
               
-              # Remove autostart immediately when installer starts
-              rm -f /usr/local/bin/lnos-shell.sh
-              chsh -s /bin/bash root
-              
               # Run the installer with ARM target
               ./LnOS-installer.sh --target=arm
+              
+              # Disable this service after successful run
+              systemctl disable lnos-installer.service
           else
               echo "ERROR: LnOS installer not found!"
               echo "Available files in /root/LnOS/scripts/:"
               ls -la /root/LnOS/scripts/ 2>/dev/null || echo "Directory not found"
               echo ""
-              
-              # Remove autostart even if installer not found
-              rm -f /usr/local/bin/lnos-shell.sh
-              chsh -s /bin/bash root
           fi
           
           echo ""
-          echo "LnOS installer completed. Dropping to shell..."
+          echo "LnOS installer completed."
           echo ""
-          
-          # Drop to bash shell
-          exec /bin/bash
           EOF
           
-          sudo chmod +x /mnt/utm/usr/local/bin/lnos-shell.sh
+          sudo chmod +x /mnt/utm/usr/local/bin/lnos-installer-wrapper.sh
           
-          # Add the custom shell to /etc/shells first
-          echo "/usr/local/bin/lnos-shell.sh" | sudo tee -a /mnt/utm/etc/shells
-          
-          # Set the custom shell as root's default shell (auto-runs installer on boot)
-          sudo chroot /mnt/utm chsh -s /usr/local/bin/lnos-shell.sh root
+          # Enable the LnOS installer service
+          sudo chroot /mnt/utm systemctl enable lnos-installer.service
           
           # Configure system settings (match ARM build)
           echo "=== CONFIGURING SYSTEM SETTINGS ==="
@@ -349,50 +353,105 @@ jobs:
           sudo mount --bind /proc /mnt/utm/proc
           sudo mount --bind /sys /mnt/utm/sys
           
-          # Copy host DNS resolution into chroot for network access
+          # Ensure network connectivity in chroot
+          echo "=== CONFIGURING CHROOT NETWORK ACCESS ==="
+          
+          # Copy host DNS resolution into chroot
           sudo cp /etc/resolv.conf /mnt/utm/etc/resolv.conf
           
-          # Initialize pacman keyring and update package databases
-          echo "=== INITIALIZING PACMAN KEYRING ==="
-          sudo chroot /mnt/utm pacman-key --init
-          sudo chroot /mnt/utm pacman-key --populate archlinuxarm
+          # Test network connectivity from host before chroot operations
+          echo "Testing network connectivity from host..."
+          nslookup mirror.archlinuxarm.org || echo "DNS resolution from host failed"
           
-          # Refresh all keys to ensure they're up to date
-          echo "=== REFRESHING GPG KEYS ==="
-          sudo chroot /mnt/utm pacman-key --refresh-keys || true
+          # Verify DNS works in chroot
+          echo "Testing DNS resolution in chroot..."
+          sudo chroot /mnt/utm nslookup mirror.archlinuxarm.org || echo "DNS resolution in chroot failed"
           
-          # Update package databases with proper signature handling
-          echo "=== UPDATING PACKAGE DATABASES ==="
-          sudo chroot /mnt/utm pacman -Sy --noconfirm
+          # Create a first-boot setup script that will install packages after network is available
+          echo "=== CREATING FIRST-BOOT SETUP SCRIPT ==="
+          sudo tee /mnt/utm/usr/local/bin/lnos-first-boot.sh << 'EOF'
+          #!/bin/bash
           
-          # Install essential packages first
-          echo "=== INSTALLING BASE SYSTEM ==="
-          sudo chroot /mnt/utm pacman -S --noconfirm base linux linux-firmware
+          # LnOS First Boot Setup - installs bootloader and packages on first boot
           
-          # Install GRUB ARM64 EFI bootloader
-          echo "=== INSTALLING ARM64 EFI BOOTLOADER ==="
-          sudo chroot /mnt/utm pacman -S --noconfirm grub efibootmgr
+          echo "=========================================="
+          echo "      LnOS First Boot Setup Starting"
+          echo "=========================================="
           
-          # Install GRUB to EFI system partition
-          sudo chroot /mnt/utm grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=LnOS --removable
+          # Wait for network to be available
+          echo "Waiting for network connectivity..."
+          for i in {1..30}; do
+              if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+                  echo "Network is available"
+                  break
+              fi
+              echo "Waiting for network... ($i/30)"
+              sleep 2
+          done
           
-          # Create custom GRUB configuration for auto-boot
-          sudo tee /mnt/utm/etc/default/grub << 'EOF'
-          GRUB_DEFAULT=0
-          GRUB_TIMEOUT=5
-          GRUB_TIMEOUT_STYLE=menu
-          GRUB_DISTRIBUTOR="LnOS"
-          GRUB_CMDLINE_LINUX_DEFAULT="quiet"
-          GRUB_CMDLINE_LINUX=""
-          GRUB_PRELOAD_MODULES="part_gpt part_msdos"
-          GRUB_TERMINAL_INPUT=console
-          GRUB_TERMINAL_OUTPUT=console
-          GRUB_GFXMODE=auto
-          GRUB_GFXPAYLOAD_LINUX=keep
-          EOF
+          # Update package databases
+          echo "Updating package databases..."
+          pacman -Sy --noconfirm
+          
+          # Install essential packages if not already installed
+          echo "Installing essential packages..."
+          pacman -S --noconfirm --needed grub efibootmgr linux linux-firmware
+          
+          # Install GRUB bootloader
+          echo "Installing GRUB bootloader..."
+          grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=LnOS --removable
           
           # Generate GRUB configuration
-          sudo chroot /mnt/utm grub-mkconfig -o /boot/grub/grub.cfg
+          echo "Generating GRUB configuration..."
+          grub-mkconfig -o /boot/grub/grub.cfg
+          
+          # Remove this script so it doesn't run again
+          echo "First boot setup complete, removing setup script..."
+          systemctl disable lnos-first-boot.service
+          rm -f /usr/local/bin/lnos-first-boot.sh
+          rm -f /etc/systemd/system/lnos-first-boot.service
+          
+          echo "=========================================="
+          echo "      LnOS First Boot Setup Complete"
+          echo "      System will reboot in 10 seconds"
+          echo "=========================================="
+          
+          sleep 10
+          reboot
+          EOF
+          
+          sudo chmod +x /mnt/utm/usr/local/bin/lnos-first-boot.sh
+          
+          # Create systemd service to run first-boot setup
+          sudo tee /mnt/utm/etc/systemd/system/lnos-first-boot.service << 'EOF'
+          [Unit]
+          Description=LnOS First Boot Setup
+          After=network.target
+          Wants=network.target
+          
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/lnos-first-boot.sh
+          RemainAfterExit=yes
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Enable the first-boot service
+          sudo chroot /mnt/utm systemctl enable lnos-first-boot.service
+          
+          # Create basic GRUB configuration for the base kernel that's already in the rootfs
+          sudo mkdir -p /mnt/utm/boot/grub
+          sudo tee /mnt/utm/boot/grub/grub.cfg << 'EOF'
+          set timeout=5
+          set default=0
+          
+          menuentry 'LnOS ARM64' {
+              linux /boot/Image root=UUID=PLACEHOLDER_ROOT_UUID rw
+              initrd /boot/initramfs-linux.img
+          }
+          EOF
           
           # Cleanup chroot filesystems (with proper process cleanup)
           echo "=== CLEANING UP CHROOT ==="
@@ -406,7 +465,7 @@ jobs:
           sudo umount /mnt/utm/proc 2>/dev/null || sudo umount -l /mnt/utm/proc 2>/dev/null || true
           sudo umount /mnt/utm/dev 2>/dev/null || sudo umount -l /mnt/utm/dev 2>/dev/null || true
           
-          # Create fstab
+          # Create fstab and update GRUB config with real UUID
           BOOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p1)
           ROOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p2)
           
@@ -414,6 +473,9 @@ jobs:
           UUID=${ROOT_UUID} / ext4 defaults 0 1
           UUID=${BOOT_UUID} /boot vfat defaults 0 2
           EOF
+          
+          # Update GRUB configuration with real root UUID
+          sudo sed -i "s/PLACEHOLDER_ROOT_UUID/${ROOT_UUID}/g" /mnt/utm/boot/grub/grub.cfg
           
           # Final cleanup - force kill any remaining processes
           echo "=== FINAL CLEANUP ==="
