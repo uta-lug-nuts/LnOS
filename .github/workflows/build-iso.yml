@@ -196,34 +196,20 @@ jobs:
           LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
           echo "Using loop device: ${LOOP_DEV}"
           
-          # Use fdisk instead of parted for better UTM compatibility
-          echo "=== CREATING MBR PARTITION TABLE (UTM Compatible) ==="
-          sudo fdisk ${LOOP_DEV} << 'EOF'
-          o
-          n
-          p
-          1
-          2048
-          1048575
-          t
-          c
-          a
-          1
-          n
-          p
-          2
-          1048576
+          # Use sgdisk directly for reliable UTM-compatible partitioning
+          echo "=== CREATING GPT PARTITION TABLE (UTM Compatible) ==="
           
-          t
-          2
-          83
-          w
-          EOF
+          # Clear any existing partition table
+          sudo sgdisk --zap-all ${LOOP_DEV}
           
-          echo "=== CONVERTING TO GPT FOR UEFI ==="
-          sudo sgdisk -g ${LOOP_DEV}
-          sudo sgdisk -t 1:ef00 ${LOOP_DEV}
-          sudo sgdisk -t 2:8300 ${LOOP_DEV}
+          # Create EFI System Partition (512MB)
+          sudo sgdisk --new=1:2048:1048575 --typecode=1:ef00 --change-name=1:"EFI System" ${LOOP_DEV}
+          
+          # Create Linux root partition (rest of disk)  
+          sudo sgdisk --new=2:1048576:0 --typecode=2:8300 --change-name=2:"Linux Root" ${LOOP_DEV}
+          
+          # Set bootable flag on EFI partition
+          sudo sgdisk --attributes=1:set:2 ${LOOP_DEV}
           
           # Show partition table
           echo "=== PARTITION TABLE CREATED ==="
