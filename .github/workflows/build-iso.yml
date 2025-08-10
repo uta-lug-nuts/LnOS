@@ -562,41 +562,57 @@ jobs:
           # Install GRUB EFI files for ARM64 (create minimal bootloader)
           echo "=== CREATING MINIMAL EFI BOOTLOADER ==="
           
-          # Create a proper GRUB EFI image using native ARM64 container
+          # Create a proper GRUB EFI image using host system with GRUB cross-compilation support
           # This creates the BOOTAA64.EFI file that UEFI firmware looks for
-          docker run --rm --platform linux/arm64 -v /mnt/utm:/target archlinux:latest bash -c "
-            # Update package database and install GRUB with ARM64 modules
-            pacman -Sy --noconfirm grub efibootmgr
-            
-            # Verify ARM64 GRUB modules are available
-            echo '=== CHECKING GRUB MODULES ==='
-            ls -la /usr/lib/grub/arm64-efi/ | head -10
-            
-            # Create GRUB EFI bootloader for ARM64 with error checking
-            if grub-mkimage -O arm64-efi -o /tmp/grubaa64.efi \
-              -p /boot/grub \
-              part_gpt part_msdos fat ext2 ext4 normal boot linux \
-              configfile loadenv ls search search_fs_uuid \
-              search_fs_file search_label echo read halt reboot \
-              test true false help cat; then
-                echo 'GRUB EFI image created successfully'
-                ls -la /tmp/grubaa64.efi
-            else
-                echo 'ERROR: grub-mkimage failed'
-                exit 1
-            fi
-            
-            # Install to EFI/BOOT directory (fallback path)
-            cp /tmp/grubaa64.efi /target/boot/EFI/BOOT/BOOTAA64.EFI
-            
-            # Also install to EFI/LnOS directory 
-            mkdir -p /target/boot/EFI/LnOS
-            cp /tmp/grubaa64.efi /target/boot/EFI/LnOS/grubaa64.efi
-            
-            # Verify files were created with correct size
-            echo '=== EFI FILES CREATED ==='
-            find /target/boot/EFI -name '*.efi' -o -name '*.EFI' -exec ls -la {} \;
-          "
+          echo "=== INSTALLING GRUB TOOLS ON HOST ==="
+          sudo apt update
+          sudo apt install -y grub-efi-arm64 grub-efi-arm64-bin
+          
+          # Verify GRUB ARM64 modules are available
+          echo "=== CHECKING GRUB ARM64 MODULES ==="
+          ls -la /usr/lib/grub/arm64-efi/ | head -10 || echo "ARM64 modules not found in /usr/lib/grub/"
+          
+          # Try alternative path
+          find /usr -name "arm64-efi" -type d 2>/dev/null || echo "No arm64-efi directories found"
+          
+          # Create GRUB EFI bootloader for ARM64 with error checking
+          echo "=== CREATING GRUB ARM64 EFI IMAGE ==="
+          if grub-mkimage -O arm64-efi -o /tmp/grubaa64.efi \
+            -p /boot/grub \
+            part_gpt part_msdos fat ext2 ext4 normal boot linux \
+            configfile loadenv ls search search_fs_uuid \
+            search_fs_file search_label echo read halt reboot \
+            test true false help cat; then
+              echo "✅ GRUB EFI image created successfully"
+              ls -la /tmp/grubaa64.efi
+          else
+              echo "❌ ERROR: grub-mkimage failed, trying alternative approach"
+              
+              # Alternative: Use grub-efi-mkimage if available
+              if command -v grub-efi-mkimage >/dev/null 2>&1; then
+                  echo "Trying grub-efi-mkimage..."
+                  grub-efi-mkimage -O arm64-efi -o /tmp/grubaa64.efi \
+                    -p /boot/grub \
+                    part_gpt part_msdos fat ext2 ext4 normal boot linux \
+                    configfile loadenv ls search search_fs_uuid \
+                    search_fs_file search_label echo read halt reboot \
+                    test true false help cat
+              else
+                  echo "ERROR: No suitable GRUB image creation tool found"
+                  exit 1
+              fi
+          fi
+          
+          # Install to EFI/BOOT directory (fallback path)
+          sudo cp /tmp/grubaa64.efi /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
+          
+          # Also install to EFI/LnOS directory 
+          sudo mkdir -p /mnt/utm/boot/EFI/LnOS
+          sudo cp /tmp/grubaa64.efi /mnt/utm/boot/EFI/LnOS/grubaa64.efi
+          
+          # Verify files were created with correct size
+          echo "=== EFI FILES CREATED ==="
+          sudo find /mnt/utm/boot/EFI -name "*.efi" -o -name "*.EFI" -exec ls -la {} \;
           
           # Create basic GRUB configuration for the base kernel
           sudo tee /mnt/utm/boot/grub/grub.cfg << 'EOF'
