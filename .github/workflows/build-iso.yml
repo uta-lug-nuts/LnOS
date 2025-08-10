@@ -198,27 +198,27 @@ jobs:
           
           # Use fdisk instead of parted for better UTM compatibility
           echo "=== CREATING MBR PARTITION TABLE (UTM Compatible) ==="
-          sudo fdisk ${LOOP_DEV} << 'FDISK_COMMANDS'
-o
-n
-p
-1
-2048
-1048575
-t
-c
-a
-1
-n
-p
-2
-1048576
-
-t
-2
-83
-w
-FDISK_COMMANDS
+          sudo fdisk ${LOOP_DEV} << 'EOF'
+          o
+          n
+          p
+          1
+          2048
+          1048575
+          t
+          c
+          a
+          1
+          n
+          p
+          2
+          1048576
+          
+          t
+          2
+          83
+          w
+          EOF
           
           echo "=== CONVERTING TO GPT FOR UEFI ==="
           sudo sgdisk -g ${LOOP_DEV}
