@@ -355,8 +355,36 @@ jobs:
           sudo chroot /mnt/utm pacman-key --init
           sudo chroot /mnt/utm pacman-key --populate archlinuxarm
           
-          # Skip bootloader installation - will be handled by LnOS installer
-          echo "=== SKIPPING BOOTLOADER - WILL BE HANDLED BY LNOS INSTALLER ==="
+          # Install Linux kernel and essential packages
+          echo "=== INSTALLING LINUX KERNEL ==="
+          sudo chroot /mnt/utm pacman -S --noconfirm linux linux-firmware base base-devel
+          
+          # Install GRUB ARM64 EFI bootloader
+          echo "=== INSTALLING ARM64 EFI BOOTLOADER ==="
+          
+          # Install GRUB for ARM64 EFI
+          sudo chroot /mnt/utm pacman -S --noconfirm grub efibootmgr
+          
+          # Install GRUB to EFI system partition
+          sudo chroot /mnt/utm grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=LnOS --removable
+          
+          # Create custom GRUB configuration for auto-boot
+          sudo tee /mnt/utm/etc/default/grub << 'EOF'
+          GRUB_DEFAULT=0
+          GRUB_TIMEOUT=5
+          GRUB_TIMEOUT_STYLE=menu
+          GRUB_DISTRIBUTOR="LnOS"
+          GRUB_CMDLINE_LINUX_DEFAULT="quiet"
+          GRUB_CMDLINE_LINUX=""
+          GRUB_PRELOAD_MODULES="part_gpt part_msdos"
+          GRUB_TERMINAL_INPUT=console
+          GRUB_TERMINAL_OUTPUT=console
+          GRUB_GFXMODE=auto
+          GRUB_GFXPAYLOAD_LINUX=keep
+          EOF
+          
+          # Generate GRUB configuration
+          sudo chroot /mnt/utm grub-mkconfig -o /boot/grub/grub.cfg
           
           # Cleanup chroot filesystems (with proper process cleanup)
           echo "=== CLEANING UP CHROOT ==="
