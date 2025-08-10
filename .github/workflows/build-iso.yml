@@ -2,7 +2,7 @@ name: Build LnOS ISO
 
 on:
   push:
-    branches: [ main, ISO_Updates ]
+    branches: [ main, ISO ]
     paths:
       - 'archiso/**'
       - 'scripts/**'
@@ -22,12 +22,13 @@ on:
       architecture:
         description: 'Target architecture'
         required: true
-        default: 'both'
+        default: 'all'
         type: choice
         options:
           - 'x86_64'
           - 'aarch64'
-          - 'both'
+          - 'utm'
+          - 'all'
 
 # add write permissions
 permissions:
@@ -35,7 +36,7 @@ permissions:
 
 jobs:
   build-x86_64:
-    if: ${{ github.event.inputs.architecture == 'x86_64' || github.event.inputs.architecture == 'both' || github.event.inputs.architecture == '' }}
+    if: ${{ github.event.inputs.architecture == 'x86_64' || github.event.inputs.architecture == 'all' || github.event.inputs.architecture == '' }}
     runs-on: ubuntu-latest
     
     steps:
@@ -76,7 +77,7 @@ jobs:
           retention-days: 30
 
   build-aarch64:
-    if: ${{ github.event.inputs.architecture == 'aarch64' || github.event.inputs.architecture == 'both' || github.event.inputs.architecture == '' }}
+    if: ${{ github.event.inputs.architecture == 'aarch64' || github.event.inputs.architecture == 'all' || github.event.inputs.architecture == '' }}
     runs-on: ubuntu-latest
     
     steps:
@@ -150,9 +151,605 @@ jobs:
           path: out/*.img
           retention-days: 30
 
+  build-utm:
+    if: ${{ github.event.inputs.architecture == 'utm' || github.event.inputs.architecture == 'all' || github.event.inputs.architecture == '' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Apple Silicon UTM disk image
+        run: |
+          # Create UTM-compatible disk image with Arch Linux ARM
+          sudo apt update && sudo apt install -y wget parted dosfstools e2fsprogs qemu-utils
+          
+          # Monitor disk space
+          echo "=== DISK SPACE BEFORE INSTALL ==="
+          df -h
+          
+          # Download Arch Linux ARM rootfs
+          echo "=== DOWNLOADING ARCH LINUX ARM ==="
+          wget http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz -O /tmp/archlinuxarm.tar.gz
+          
+          echo "=== DISK SPACE AFTER DOWNLOAD ==="
+          df -h
+          
+          # Make scripts executable
+          chmod +x scripts/LnOS-installer.sh
+          
+          # Create UTM-compatible disk image
+          echo "=== CREATING UTM DISK IMAGE ==="
+          
+          # Create 4GB raw disk image for UTM (increased from 1.5GB to prevent space issues)
+          dd if=/dev/zero of=lnos-utm-apple-silicon.img bs=1M count=4096
+          
+          # Create loop device and partition the disk
+          LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
+          echo "Using loop device: ${LOOP_DEV}"
+          
+          # Use sgdisk directly for reliable UTM-compatible partitioning
+          echo "=== CREATING GPT PARTITION TABLE (UTM Compatible) ==="
+          
+          # Clear any existing partition table
+          sudo sgdisk --zap-all ${LOOP_DEV}
+          
+          # Create EFI System Partition (512MB)
+          sudo sgdisk --new=1:2048:1048575 --typecode=1:ef00 --change-name=1:"EFI System" ${LOOP_DEV}
+          
+          # Create Linux root partition (rest of disk)  
+          sudo sgdisk --new=2:1048576:0 --typecode=2:8300 --change-name=2:"Linux Root" ${LOOP_DEV}
+          
+          # Set bootable flag on EFI partition
+          sudo sgdisk --attributes=1:set:2 ${LOOP_DEV}
+          
+          # Show partition table
+          echo "=== PARTITION TABLE CREATED ==="
+          sudo parted ${LOOP_DEV} --script print
+          
+          # Clean up any existing device mappings and loop devices
+          echo "=== CLEANING UP EXISTING DEVICES ==="
+          sudo dmsetup remove_all 2>/dev/null || true
+          sudo kpartx -dv ${LOOP_DEV} 2>/dev/null || true
+          sudo losetup -d ${LOOP_DEV} 2>/dev/null || true
+          
+          # Wait for cleanup to complete
+          sync
+          sudo udevadm settle
+          sleep 2
+          
+          # Re-create the loop device cleanly
+          LOOP_DEV=$(sudo losetup -f --show lnos-utm-apple-silicon.img)
+          echo "Using clean loop device: ${LOOP_DEV}"
+          
+          # Only use partprobe (avoid kpartx to prevent conflicts)
+          sudo partprobe ${LOOP_DEV}
+          sudo udevadm settle
+          sleep 3
+          
+          # Verify kernel detected partitions
+          echo "=== KERNEL PARTITION DETECTION ==="
+          cat /proc/partitions | grep loop0
+          
+          # Verify partitions exist
+          echo "=== VERIFYING PARTITIONS ==="
+          ls -la ${LOOP_DEV}*
+          
+          # Check if any processes are using the devices
+          echo "=== CHECKING DEVICE USAGE ==="
+          sudo fuser -v ${LOOP_DEV}p1 2>/dev/null || echo "No processes using ${LOOP_DEV}p1"
+          sudo fuser -v ${LOOP_DEV}p2 2>/dev/null || echo "No processes using ${LOOP_DEV}p2"
+          
+          # Ensure no processes are using the devices
+          echo "=== ENSURING CLEAN DEVICE STATE ==="
+          sudo fuser -k ${LOOP_DEV}p1 2>/dev/null || true
+          sudo fuser -k ${LOOP_DEV}p2 2>/dev/null || true
+          sleep 1
+          
+          # Format EFI System Partition with simple, proven parameters
+          echo "=== FORMATTING EFI SYSTEM PARTITION ==="
+          sudo wipefs -a ${LOOP_DEV}p1 2>/dev/null || true
+          
+          # Use the simplest possible FAT32 format that UEFI universally supports
+          if ! sudo mkfs.vfat -F32 ${LOOP_DEV}p1; then
+              echo "ERROR: Failed to format EFI partition"
+              echo "Checking device status:"
+              sudo lsof ${LOOP_DEV}p1 2>/dev/null || echo "No processes using device"
+              sudo dmsetup info 2>/dev/null || echo "No device mapper info"
+              exit 1
+          fi
+          echo "EFI partition formatted successfully"
+          
+          echo "=== FORMATTING ROOT PARTITION ==="
+          sudo wipefs -a ${LOOP_DEV}p2 2>/dev/null || true
+          if ! sudo mkfs.ext4 -F -L "LNOS_ROOT" ${LOOP_DEV}p2; then
+              echo "ERROR: Failed to format root partition"
+              echo "Checking device status:"
+              sudo lsof ${LOOP_DEV}p2 2>/dev/null || echo "No processes using device"
+              sudo dmsetup info 2>/dev/null || echo "No device mapper info"
+              exit 1
+          fi
+          echo "Root partition formatted successfully"
+          
+          # Verify formatting
+          echo "=== VERIFYING FILESYSTEM CREATION ==="
+          sudo blkid ${LOOP_DEV}p1
+          sudo blkid ${LOOP_DEV}p2
+          
+          # Mount partitions with proper cleanup first
+          echo "=== MOUNTING PARTITIONS ==="
+          
+          # Ensure mount points are clean
+          sudo umount /mnt/utm/boot 2>/dev/null || true
+          sudo umount /mnt/utm 2>/dev/null || true
+          sudo rm -rf /mnt/utm
+          
+          # Wait for devices to be fully ready
+          sudo udevadm settle
+          sleep 3
+          
+          # Create clean mount point
+          sudo mkdir -p /mnt/utm
+          
+          # Mount root partition
+          if ! sudo mount ${LOOP_DEV}p2 /mnt/utm; then
+              echo "ERROR: Failed to mount root partition"
+              echo "Device information:"
+              sudo lsblk ${LOOP_DEV}
+              sudo blkid ${LOOP_DEV}p2
+              echo "Checking for conflicting mounts:"
+              sudo mount | grep loop0 || echo "No loop0 mounts found"
+              exit 1
+          fi
+          echo "Root partition mounted successfully"
+          
+          # Create boot directory and mount EFI partition
+          sudo mkdir -p /mnt/utm/boot
+          
+          if ! sudo mount -t vfat ${LOOP_DEV}p1 /mnt/utm/boot; then
+              echo "ERROR: Failed to mount EFI partition"
+              echo "Device information:"
+              sudo lsblk ${LOOP_DEV}
+              sudo blkid ${LOOP_DEV}p1
+              exit 1
+          fi
+          echo "EFI partition mounted successfully"
+          
+          # Test write access to EFI partition
+          echo "=== TESTING EFI PARTITION ACCESS ==="
+          sudo touch /mnt/utm/boot/test_file
+          sudo rm -f /mnt/utm/boot/test_file
+          echo "EFI partition is writable"
+          
+          # Show mount information
+          echo "=== MOUNT INFORMATION ==="
+          sudo df -h /mnt/utm /mnt/utm/boot
+          
+          # Install base Arch Linux ARM system
+          echo "=== INSTALLING BASE SYSTEM ==="
+          
+          # Extract Arch Linux ARM for aarch64 (already downloaded)
+          sudo tar -xzf /tmp/archlinuxarm.tar.gz -C /mnt/utm
+          
+          # Check what kernel files are available
+          echo "=== CHECKING AVAILABLE KERNEL FILES ==="
+          sudo find /mnt/utm/boot -name "*" -type f | head -20
+          sudo ls -la /mnt/utm/boot/ || echo "No boot directory found"
+          
+          # Copy LnOS files (match ARM build structure)
+          sudo mkdir -p /mnt/utm/root/LnOS/scripts
+          sudo cp -r scripts/pacman_packages /mnt/utm/root/LnOS/scripts/
+          sudo cp scripts/LnOS-installer.sh /mnt/utm/root/LnOS/scripts/
+          sudo chmod +x /mnt/utm/root/LnOS/scripts/LnOS-installer.sh
+          sudo cp README.md LICENSE /mnt/utm/root/LnOS/ 2>/dev/null || true
+          
+          # Create the LnOS auto-start service that runs after first-boot setup
+          sudo tee /mnt/utm/etc/systemd/system/lnos-installer.service << 'EOF'
+          [Unit]
+          Description=LnOS Installer Service
+          After=lnos-first-boot.service
+          Requires=lnos-first-boot.service
+          
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/lnos-installer-wrapper.sh
+          RemainAfterExit=yes
+          StandardOutput=journal+console
+          StandardError=journal+console
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Create the LnOS installer wrapper script
+          sudo tee /mnt/utm/usr/local/bin/lnos-installer-wrapper.sh << 'EOF'
+          #!/bin/bash
+          
+          # LnOS Installer Wrapper for UTM ARM64 - runs after system setup is complete
+          
+          echo "=========================================="
+          echo "      Welcome to LnOS UTM ARM64 Environment"
+          echo "=========================================="
+          echo ""
+          
+          # Check if installer exists and run it
+          if [[ -f /root/LnOS/scripts/LnOS-installer.sh ]]; then
+              cd /root/LnOS/scripts
+              chmod +x ./LnOS-installer.sh
+              echo "Starting LnOS installer..."
+              
+              # Run the installer with ARM target
+              ./LnOS-installer.sh --target=arm
+              
+              # Disable this service after successful run
+              systemctl disable lnos-installer.service
+          else
+              echo "ERROR: LnOS installer not found!"
+              echo "Available files in /root/LnOS/scripts/:"
+              ls -la /root/LnOS/scripts/ 2>/dev/null || echo "Directory not found"
+              echo ""
+          fi
+          
+          echo ""
+          echo "LnOS installer completed."
+          echo ""
+          EOF
+          
+          sudo chmod +x /mnt/utm/usr/local/bin/lnos-installer-wrapper.sh
+          
+          # Enable the LnOS installer service
+          sudo chroot /mnt/utm systemctl enable lnos-installer.service
+          
+          # Configure system settings (match ARM build)
+          echo "=== CONFIGURING SYSTEM SETTINGS ==="
+          
+          # Set default timezone
+          sudo ln -sf /usr/share/zoneinfo/UTC /mnt/utm/etc/localtime
+          
+          # Configure pacman for ARM64 (using working Pi configuration)
+          sudo tee /mnt/utm/etc/pacman.conf << 'EOF'
+          [options]
+          HoldPkg     = pacman glibc
+          Architecture = aarch64
+          CheckSpace
+          ParallelDownloads = 5
+          SigLevel    = Required DatabaseOptional
+          LocalFileSigLevel = Optional
+          RemoteFileSigLevel = Required
+          
+          [core]
+          Include = /etc/pacman.d/mirrorlist
+          
+          [extra]
+          Include = /etc/pacman.d/mirrorlist
+          
+          [community]
+          Include = /etc/pacman.d/mirrorlist
+          EOF
+          
+          # Create mirrorlist for Arch Linux ARM (using working Pi configuration)
+          sudo tee /mnt/utm/etc/pacman.d/mirrorlist << 'EOF'
+          # Arch Linux ARM mirrorlist
+          
+          # Primary mirrors
+          Server = https://mirror.archlinuxarm.org/$arch/$repo
+          Server = https://uk.mirror.archlinuxarm.org/$arch/$repo
+          Server = https://us.mirror.archlinuxarm.org/$arch/$repo
+          Server = https://sg.mirror.archlinuxarm.org/$arch/$repo
+          EOF
+          
+          # Configure networking and DNS
+          echo "=== CONFIGURING NETWORKING ==="
+          
+          # Setup DNS resolution first
+          sudo tee /mnt/utm/etc/resolv.conf << 'EOF'
+          nameserver 8.8.8.8
+          nameserver 8.8.4.4
+          nameserver 1.1.1.1
+          EOF
+          
+          sudo chroot /mnt/utm systemctl enable systemd-networkd
+          sudo chroot /mnt/utm systemctl enable systemd-resolved
+          
+          # Create network configuration for UTM
+          sudo mkdir -p /mnt/utm/etc/systemd/network
+          sudo tee /mnt/utm/etc/systemd/network/20-wired.network << 'EOF'
+          [Match]
+          Name=*
+          
+          [Network]
+          DHCP=yes
+          DNS=8.8.8.8
+          DNS=8.8.4.4
+          EOF
+          
+          # Mount necessary filesystems for chroot
+          sudo mount --bind /dev /mnt/utm/dev
+          sudo mount --bind /proc /mnt/utm/proc
+          sudo mount --bind /sys /mnt/utm/sys
+          
+          # Ensure network connectivity in chroot
+          echo "=== CONFIGURING CHROOT NETWORK ACCESS ==="
+          
+          # Copy host DNS resolution into chroot
+          sudo cp /etc/resolv.conf /mnt/utm/etc/resolv.conf
+          
+          # Test network connectivity from host before chroot operations
+          echo "Testing network connectivity from host..."
+          nslookup mirror.archlinuxarm.org || echo "DNS resolution from host failed"
+          
+          # Verify DNS works in chroot
+          echo "Testing DNS resolution in chroot..."
+          sudo chroot /mnt/utm nslookup mirror.archlinuxarm.org || echo "DNS resolution in chroot failed"
+          
+          # Create a first-boot setup script that will install packages after network is available
+          echo "=== CREATING FIRST-BOOT SETUP SCRIPT ==="
+          sudo tee /mnt/utm/usr/local/bin/lnos-first-boot.sh << 'EOF'
+          #!/bin/bash
+          
+          # LnOS First Boot Setup - installs bootloader and packages on first boot
+          
+          echo "=========================================="
+          echo "      LnOS First Boot Setup Starting"
+          echo "=========================================="
+          
+          # Wait for network to be available
+          echo "Waiting for network connectivity..."
+          for i in {1..30}; do
+              if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+                  echo "Network is available"
+                  break
+              fi
+              echo "Waiting for network... ($i/30)"
+              sleep 2
+          done
+          
+          # Update package databases
+          echo "Updating package databases..."
+          pacman -Sy --noconfirm
+          
+          # Install essential packages if not already installed
+          echo "Installing essential packages..."
+          pacman -S --noconfirm --needed grub efibootmgr linux linux-firmware
+          
+          # Install GRUB bootloader
+          echo "Installing GRUB bootloader..."
+          grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=LnOS --removable
+          
+          # Generate GRUB configuration
+          echo "Generating GRUB configuration..."
+          grub-mkconfig -o /boot/grub/grub.cfg
+          
+          # Remove this script so it doesn't run again
+          echo "First boot setup complete, removing setup script..."
+          systemctl disable lnos-first-boot.service
+          rm -f /usr/local/bin/lnos-first-boot.sh
+          rm -f /etc/systemd/system/lnos-first-boot.service
+          
+          echo "=========================================="
+          echo "      LnOS First Boot Setup Complete"
+          echo "      System will reboot in 10 seconds"
+          echo "=========================================="
+          
+          sleep 10
+          reboot
+          EOF
+          
+          sudo chmod +x /mnt/utm/usr/local/bin/lnos-first-boot.sh
+          
+          # Create systemd service to run first-boot setup
+          sudo tee /mnt/utm/etc/systemd/system/lnos-first-boot.service << 'EOF'
+          [Unit]
+          Description=LnOS First Boot Setup
+          After=network.target
+          Wants=network.target
+          
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/lnos-first-boot.sh
+          RemainAfterExit=yes
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Enable the first-boot service
+          sudo chroot /mnt/utm systemctl enable lnos-first-boot.service
+          
+          # Create EFI boot structure that UEFI firmware can find
+          sudo mkdir -p /mnt/utm/boot/EFI/BOOT
+          sudo mkdir -p /mnt/utm/boot/grub
+          
+          # Install GRUB EFI files for ARM64 (create minimal bootloader)
+          echo "=== CREATING MINIMAL EFI BOOTLOADER ==="
+          
+          # Create a simple EFI bootloader that works with UTM
+          # UTM seems to need a more traditional EFI approach
+          echo "=== CREATING UTM-COMPATIBLE EFI BOOTLOADER ==="
+          
+          # Install systemd-boot as the EFI bootloader
+          echo "Installing systemd-boot..."
+          sudo apt update
+          sudo apt install -y systemd-boot-efi
+          
+          # Create EFI directory structure
+          sudo mkdir -p /mnt/utm/boot/EFI/BOOT
+          sudo mkdir -p /mnt/utm/boot/EFI/systemd
+          sudo mkdir -p /mnt/utm/boot/loader/entries
+          
+          # Copy systemd-boot EFI bootloader
+          if [ -f /usr/lib/systemd/boot/efi/systemd-bootaa64.efi ]; then
+              sudo cp /usr/lib/systemd/boot/efi/systemd-bootaa64.efi /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
+              echo "✅ Installed systemd-boot as BOOTAA64.EFI"
+          else
+              echo "⚠️ systemd-boot not found, creating kernel stub"
+              
+              # Fallback: Direct kernel copy with better naming
+              if [ -f /mnt/utm/boot/Image ]; then
+                  # Create kernel command line file
+                  echo "root=UUID=${ROOT_UUID} rw quiet init=/usr/local/bin/lnos-shell.sh" | sudo tee /mnt/utm/boot/cmdline.txt
+                  
+                  # Copy kernel as EFI application
+                  sudo cp /mnt/utm/boot/Image /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
+                  echo "✅ Created kernel stub bootloader"
+              else
+                  echo "❌ No bootloader solution found"
+                  exit 1
+              fi
+          fi
+          
+          # Create systemd-boot configuration
+          sudo tee /mnt/utm/boot/loader/loader.conf << EOF
+          default  lnos.conf
+          timeout  5
+          console-mode auto
+          editor   yes
+          EOF
+          
+          # Create boot entry
+          sudo tee /mnt/utm/boot/loader/entries/lnos.conf << EOF
+          title    LnOS ARM64
+          linux    /Image
+          initrd   /initramfs-linux.img
+          options  root=UUID=${ROOT_UUID} rw quiet systemd.unit=multi-user.target
+          EOF
+          
+          # Create fallback entry
+          sudo tee /mnt/utm/boot/loader/entries/lnos-fallback.conf << EOF
+          title    LnOS ARM64 (Fallback)
+          linux    /Image
+          initrd   /initramfs-linux-fallback.img
+          options  root=UUID=${ROOT_UUID} rw debug systemd.unit=multi-user.target
+          EOF
+          
+          # Verify EFI files were created with correct size
+          echo "=== EFI FILES CREATED ==="
+          sudo find /mnt/utm/boot/EFI -name "*.EFI" -exec ls -la {} \;
+          
+          # Also show loader configuration
+          echo "=== LOADER CONFIGURATION ==="
+          sudo find /mnt/utm/boot/loader -name "*.conf" -exec echo "=== {} ===" \; -exec cat {} \;
+          
+          # Create basic GRUB configuration for the base kernel
+          sudo tee /mnt/utm/boot/grub/grub.cfg << 'EOF'
+          set timeout=5
+          set default=0
+          
+          menuentry 'LnOS ARM64' {
+              search --no-floppy --fs-uuid --set=root PLACEHOLDER_ROOT_UUID
+              linux /boot/Image root=UUID=PLACEHOLDER_ROOT_UUID rw quiet
+              if [ -f /boot/initramfs-linux.img ]; then
+                  initrd /boot/initramfs-linux.img
+              fi
+          }
+          
+          menuentry 'LnOS ARM64 (fallback)' {
+              search --no-floppy --fs-uuid --set=root PLACEHOLDER_ROOT_UUID  
+              linux /boot/Image root=UUID=PLACEHOLDER_ROOT_UUID rw init=/bin/bash
+          }
+          EOF
+          
+          # Cleanup chroot filesystems (with proper process cleanup)
+          echo "=== CLEANING UP CHROOT ==="
+          
+          # Force kill any processes that might be keeping mounts busy
+          sudo fuser -km /mnt/utm 2>/dev/null || true
+          sleep 2
+          
+          # Unmount chroot filesystems in reverse order with lazy unmount as fallback
+          sudo umount /mnt/utm/sys 2>/dev/null || sudo umount -l /mnt/utm/sys 2>/dev/null || true
+          sudo umount /mnt/utm/proc 2>/dev/null || sudo umount -l /mnt/utm/proc 2>/dev/null || true
+          sudo umount /mnt/utm/dev 2>/dev/null || sudo umount -l /mnt/utm/dev 2>/dev/null || true
+          
+          # Create fstab and update GRUB config with real UUID
+          BOOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p1)
+          ROOT_UUID=$(sudo blkid -s UUID -o value ${LOOP_DEV}p2)
+          
+          sudo tee /mnt/utm/etc/fstab << EOF
+          UUID=${ROOT_UUID} / ext4 defaults 0 1
+          UUID=${BOOT_UUID} /boot vfat defaults 0 2
+          EOF
+          
+          # Update GRUB configuration with real root UUID
+          sudo sed -i "s/PLACEHOLDER_ROOT_UUID/${ROOT_UUID}/g" /mnt/utm/boot/grub/grub.cfg
+          
+          # Final verification of EFI structure
+          echo "=== FINAL EFI STRUCTURE VERIFICATION ==="
+          echo "Boot partition contents:"
+          sudo find /mnt/utm/boot -type f | sort
+          echo ""
+          echo "EFI directory structure:"
+          sudo find /mnt/utm/boot/EFI -type f 2>/dev/null | sort || echo "No EFI directory found"
+          echo ""
+          echo "Checking BOOTAA64.EFI:"
+          sudo ls -la /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI 2>/dev/null || echo "BOOTAA64.EFI not found"
+          echo ""
+          echo "Checking file permissions:"
+          sudo ls -la /mnt/utm/boot/EFI/BOOT/ 2>/dev/null || echo "EFI/BOOT directory not accessible"
+          
+          # Create a debug script for EFI troubleshooting
+          sudo tee /mnt/utm/root/debug-efi.sh << 'EOF'
+          #!/bin/bash
+          echo "=== EFI DEBUG INFORMATION ==="
+          echo "Boot partition contents:"
+          find /boot -type f | sort
+          echo ""
+          echo "EFI directory structure:"
+          find /boot/EFI -type f 2>/dev/null | sort || echo "No EFI directory"
+          echo ""
+          echo "Partition information:"
+          lsblk
+          echo ""
+          echo "UEFI variables (if available):"
+          efibootmgr 2>/dev/null || echo "efibootmgr not available"
+          EOF
+          sudo chmod +x /mnt/utm/root/debug-efi.sh
+          
+          # Final cleanup - force kill any remaining processes
+          echo "=== FINAL CLEANUP ==="
+          sudo fuser -km /mnt/utm/ 2>/dev/null || true
+          sleep 3
+          
+          # Unmount in proper order with multiple attempts
+          echo "Unmounting boot partition..."
+          sudo umount /mnt/utm/boot 2>/dev/null || sudo umount -l /mnt/utm/boot 2>/dev/null || true
+          
+          echo "Unmounting root partition..."
+          sudo umount /mnt/utm 2>/dev/null || sudo umount -l /mnt/utm 2>/dev/null || true
+          
+          echo "Detaching loop device..."
+          sudo losetup -d ${LOOP_DEV} 2>/dev/null || true
+          
+          # Verify cleanup
+          echo "Verifying cleanup..."
+          sudo losetup -l | grep ${LOOP_DEV} || echo "Loop device successfully detached"
+          
+          # Create output directory
+          mkdir -p out
+          mv lnos-utm-apple-silicon.img out/
+          
+          echo "=== UTM IMAGE BUILD COMPLETE ==="
+          ls -lh out/
+          df -h
+
+      - name: Upload Apple Silicon UTM image
+        uses: actions/upload-artifact@v4
+        with:
+          name: lnos-utm-apple-silicon
+          path: out/*.img
+          retention-days: 30
+
   create-release:
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ISO') && github.event_name == 'push'
-    needs: [build-x86_64, build-aarch64]
+    needs: [build-x86_64, build-aarch64, build-utm]
     runs-on: ubuntu-latest
     
     steps:
@@ -169,6 +766,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: lnos-aarch64-sdcard
+          path: ./isos/
+
+      - name: Download Apple Silicon UTM image
+        uses: actions/download-artifact@v4
+        with:
+          name: lnos-utm-apple-silicon
           path: ./isos/
 
       - name: Check file sizes for compression decision
@@ -304,6 +907,7 @@ jobs:
             ### Files Included:
             - **x86_64 ISO/IMG**: For VMs, Intel/AMD computers, and USB boot
             - **ARM64 IMG**: SD card image for Raspberry Pi 4 and ARM64 devices
+            - **UTM IMG**: Apple Silicon VM image for UTM on macOS
             - **Digital Signatures**: `.asc` files for verifying authenticity
             
             **Note**: Large files (>1GB) are compressed with XZ to stay under GitHub's 2GB limit. Files under 1GB are uncompressed and ready to use.

@@ -137,7 +137,12 @@ setup_desktop_and_packages()
 
     # Package Installation
     while true; do
-        THEME=$(gum choose --header "Choose your installation Profile:" "CSE" "Custom")
+        # Detect if running on Asahi and add Asahi option
+        if [[ "$(uname -r)" == *"asahi"* ]]; then
+            THEME=$(gum choose --header "Choose your installation Profile:" "CSE" "Asahi" "Custom")
+        else
+            THEME=$(gum choose --header "Choose your installation Profile:" "CSE" "Custom")
+        fi
         gum confirm "You selected: $THEME. Proceed with installation?" && break
     done
 
@@ -196,6 +201,19 @@ setup_desktop_and_packages()
             paru -S "$PARU_PACKAGES"
 
 
+            ;;
+        "Asahi")
+            if [ ! -f "/root/LnOS/pacman_packages/Asahi_packages.txt" ]; then
+                gum_error  "Error: Asahi_packages.txt not found in /root/LnOS/pacman_packages/."
+                exit 1
+            fi
+
+            # choose packages from Asahi list (PACMAN)
+            PACMAN_PACKAGES=$(cat /root/LnOS/pacman_packages/Asahi_packages.txt | gum choose --no-limit --header "Select Asahi Packages to Install:")
+            PACMAN_PACKAGES=$(echo "$PACMAN_PACKAGES" | tr '\n' ' ')
+            if [ -n "$PACMAN_PACKAGES" ]; then
+                gum spin --spinner dot --title "Installing asahi-specific packages..." -- pacman -S --noconfirm $PACMAN_PACKAGES
+            fi
             ;;
         "Custom")
             PACMAN_PACKAGES=$(gum input --header "Enter the pacman packages you want (space-separated):")
@@ -540,20 +558,79 @@ prepare_arm()
     gum style --border normal --margin "1" --padding "1" --border-foreground 212 "SD card preparation complete. Insert into Raspberry Pi and boot."
 }
 
+# Function to install ARM Linux for Apple Silicon Macs using UTM (run from existing Linux)
+install_arm()
+{
+    gum_echo "Installing ARM Linux for Apple Silicon using UTM..."
+    
+    # Check if running on ARM64
+    ARCH=$(uname -m)
+    if [[ "$ARCH" != "aarch64" ]] && [[ "$ARCH" != "arm64" ]]; then
+        gum_error "Error: ARM installation requires ARM64 hardware"
+        exit 1
+    fi
+    
+    gum_echo "System checks passed:"
+    gum_echo "- Architecture: $ARCH"
+    
+    # Confirm installation
+    if ! gum confirm "This will install ARM Linux. Continue?"; then
+        exit 1
+    fi
+    
+    # Setup drive for ARM installation
+    setup_drive
+    
+    # Install base system
+    gum_echo "Installing base system for ARM64..."
+    pacstrap /mnt base linux linux-firmware btrfs-progs base-devel git wget networkmanager btrfs-progs openssh git dhcpcd networkmanager vi vim iw wget curl xdg-user-dirs
+    
+    gum_echo "Base system install done!"
+    
+    # Copy LnOS repository files to target system
+    gum spin --spinner dot --title "copying LnOS files" -- bash -c "$(declare -f copy_lnos_files); copy_lnos_files"
+    
+    # Generate fstab
+    genfstab -U /mnt >> /mnt/etc/fstab
+    
+    # Chroot and configure the OS
+    arch-chroot /mnt /bin/bash -c "$(declare -f configure_system setup_desktop_and_packages gum_echo gum_error gum_complete); configure_system"
+    
+    # Install GRUB
+    if [ $UEFI -eq 1 ]; then
+        arch-chroot /mnt pacman -S --noconfirm grub efibootmgr
+        arch-chroot /mnt grub-install --target=arm64-efi --efi-directory=/boot --bootloader-id=GRUB
+    else
+        gum_error "Error: BIOS boot not supported on ARM64"
+        exit 1
+    fi
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+    
+    # Unmount and reboot
+    umount -R /mnt
+    gum_complete "Installation complete. Rebooting in 10 seconds..."
+    sleep 10
+    reboot
+}
 # Main logic
 if [ "$1" = "--target=x86_64" ]; then
   install_x86_64
 elif [ "$1" = "--target=aarch64" ]; then
-  gum_error "WIP: Please come back later!"
+  prepare_arm
+elif [ "$1" = "--target=arm" ]; then
+  install_arm
 elif [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
 
 	gum style \
 		--foreground 255 --border-foreground 130 --border double \
 		--width 100 --margin "1 2" --padding "2 4" \
 		'Help Menu:' \
-		'Usage: installer.sh --target=[x86_64 | aarch64] or -h' \
-		'[--target]: sets the installer"s target architecture (for the cpu)' \
-		'Please check your cpu architecture by running: uname -m ' \
+		'Usage: installer.sh --target=[x86_64 | aarch64 | arm] or -h' \
+		'[--target]: sets the installer target architecture/platform' \
+		'  x86_64  - Standard Intel/AMD 64-bit installation (from Arch live ISO)' \
+		'  aarch64 - ARM64 installation for Raspberry Pi (from existing Linux)' \
+		'  arm     - ARM Linux installation for Apple Silicon using UTM' \
+		'Please check your cpu architecture by running: uname -m' \
 		'[-h] or [--help]: Brings up this help menu'
 
 	exit 0
@@ -561,9 +638,12 @@ else
 	gum style \
 		--foreground 255 --border-foreground 1 --border double \
 		--width 100 --margin "1 2" --padding "2 4" \
-		'Usage: installer.sh --target=[x86_64 | aarch64] or -h' \
-		'[--target]: sets the installer"s target architecture (for the cpu)' \
-		'Please check your cpu architecture by running: uname -m ' \
+		'Usage: installer.sh --target=[x86_64 | aarch64 | arm] or -h' \
+		'[--target]: sets the installer target architecture/platform' \
+		'  x86_64  - Standard Intel/AMD 64-bit installation (from Arch live ISO)' \
+		'  aarch64 - ARM64 installation for Raspberry Pi (from existing Linux)' \
+		'  arm     - ARM Linux installation for Apple Silicon using UTM' \
+		'Please check your cpu architecture by running: uname -m' \
 		'[-h] or [--help]: Brings up this help menu'
 	exit 1
 fi
