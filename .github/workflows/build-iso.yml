@@ -562,81 +562,52 @@ jobs:
           # Install GRUB EFI files for ARM64 (create minimal bootloader)
           echo "=== CREATING MINIMAL EFI BOOTLOADER ==="
           
-          # Create a proper GRUB EFI image - try multiple approaches
-          # This creates the BOOTAA64.EFI file that UEFI firmware looks for
-          echo "=== CREATING ARM64 EFI BOOTLOADER ==="
+          # Use EFI stub boot - the Arch Linux ARM way!
+          # The Linux kernel itself can be booted directly by UEFI (no GRUB needed)
+          echo "=== SETTING UP EFI STUB BOOT ==="
           
-          # Try to install basic GRUB tools
-          sudo apt update
-          sudo apt install -y grub-common grub2-common || echo "GRUB packages not available"
+          # Check what kernel files we have
+          echo "Available kernel files:"
+          sudo find /mnt/utm/boot -name "*Image*" -o -name "*vmlinuz*" | head -5
           
-          # Approach 1: Download pre-built GRUB ARM64 EFI from official source
-          echo "=== DOWNLOADING PRE-BUILT GRUB ARM64 EFI ==="
-          if curl -fsSL -o /tmp/grubaa64.efi https://github.com/rhboot/shim/releases/download/15.8/grubaa64.efi; then
-              echo "✅ Downloaded pre-built GRUB ARM64 EFI"
-              ls -la /tmp/grubaa64.efi
+          # Use the EFI-stubbed kernel as the bootloader
+          if [ -f /mnt/utm/boot/Image ]; then
+              echo "✅ Found EFI-stubbed kernel Image"
+              sudo cp /mnt/utm/boot/Image /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
+              sudo cp /mnt/utm/boot/Image /mnt/utm/boot/EFI/LnOS/grubaa64.efi
+              echo "✅ Installed kernel as EFI bootloader"
+          elif [ -f /mnt/utm/boot/vmlinuz-linux ]; then
+              echo "✅ Found vmlinuz-linux kernel"
+              sudo cp /mnt/utm/boot/vmlinuz-linux /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
+              sudo cp /mnt/utm/boot/vmlinuz-linux /mnt/utm/boot/EFI/LnOS/grubaa64.efi
+              echo "✅ Installed kernel as EFI bootloader"
           else
-              echo "⚠️ Download failed, trying alternative source..."
-              
-              # Approach 2: Extract from Ubuntu ARM64 package
-              if curl -fsSL -o /tmp/grub-efi-arm64.deb http://ports.ubuntu.com/pool/main/g/grub2/grub-efi-arm64_2.12-1ubuntu7_arm64.deb; then
-                  echo "Extracting GRUB from Ubuntu ARM64 package..."
-                  cd /tmp
-                  ar x grub-efi-arm64.deb
-                  tar -xf data.tar.xz
-                  
-                  # Find the GRUB EFI file
-                  find . -name "*.efi" -exec cp {} grubaa64.efi \; 2>/dev/null || true
-                  
-                  if [ -f grubaa64.efi ] && [ -s grubaa64.efi ]; then
-                      echo "✅ Extracted GRUB ARM64 EFI from package"
-                      ls -la grubaa64.efi
-                  else
-                      echo "❌ Failed to extract EFI file"
-                      
-                      # Approach 3: Create minimal EFI stub
-                      echo "Creating minimal EFI stub as fallback..."
-                      
-                      # This creates a minimal EFI application that just boots Linux directly
-                      cat > /tmp/minimal_boot.c << 'EOC'
-          #include <efi.h>
-          #include <efilib.h>
-          
-          EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
-              InitializeLib(ImageHandle, SystemTable);
-              Print(L"LnOS Minimal Bootloader\r\n");
-              Print(L"Loading Linux kernel...\r\n");
-              return EFI_SUCCESS;
-          }
-          EOC
-                      
-                      # For now, create a simple working EFI file by copying from system if available
-                      if [ -f /usr/lib/shim/shimaa64.efi ]; then
-                          cp /usr/lib/shim/shimaa64.efi /tmp/grubaa64.efi
-                          echo "✅ Using system shim as EFI bootloader"
-                      else
-                          # Last resort: create a basic binary that UEFI can at least recognize
-                          printf '\x4d\x5a\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00' > /tmp/grubaa64.efi
-                          printf '\xb8\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00' >> /tmp/grubaa64.efi
-                          echo "⚠️ Created minimal EFI stub - system may need manual boot"
-                      fi
-                  fi
-              else
-                  echo "❌ All approaches failed"
-                  exit 1
-              fi
+              echo "❌ No suitable kernel found for EFI stub boot"
+              echo "Available files in /boot:"
+              sudo ls -la /mnt/utm/boot/ | head -10
+              exit 1
           fi
           
-          # Install to EFI/BOOT directory (fallback path)
-          sudo cp /tmp/grubaa64.efi /mnt/utm/boot/EFI/BOOT/BOOTAA64.EFI
+          # Create EFI boot entry for kernel parameters
+          sudo mkdir -p /mnt/utm/boot/loader/entries
+          sudo tee /mnt/utm/boot/loader/entries/arch.conf << EOF
+          title   LnOS ARM64
+          linux   /Image
+          initrd  /initramfs-linux.img
+          options root=UUID=${ROOT_UUID} rw quiet
+          EOF
           
-          # Also install to EFI/LnOS directory 
-          sudo mkdir -p /mnt/utm/boot/EFI/LnOS
-          sudo cp /tmp/grubaa64.efi /mnt/utm/boot/EFI/LnOS/grubaa64.efi
+          # Create systemd-boot loader configuration
+          sudo tee /mnt/utm/boot/loader/loader.conf << EOF
+          default  arch.conf
+          timeout  3
+          console-mode max
+          editor   no
+          EOF
           
-          # Verify files were created with correct size
+          # Verify EFI files were created with correct size
           echo "=== EFI FILES CREATED ==="
-          sudo find /mnt/utm/boot/EFI -name "*.efi" -o -name "*.EFI" -exec ls -la {} \;
+          sudo find /mnt/utm/boot/EFI -name "*.EFI" -exec ls -la {} \;
           
           # Create basic GRUB configuration for the base kernel
           sudo tee /mnt/utm/boot/grub/grub.cfg << 'EOF'
