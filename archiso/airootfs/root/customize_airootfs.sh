@@ -14,6 +14,9 @@ echo "Configuring pacman repositories..."
 pacman-key --init
 pacman-key --populate archlinux
 
+# Make pacman faster & more tolerant
+sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 10/' /etc/pacman.conf
+
 # Force replace the mirrorlist with our reliable one
 echo "Replacing mirrorlist with reliable mirrors..."
 cat > /etc/pacman.d/mirrorlist << 'EOF'

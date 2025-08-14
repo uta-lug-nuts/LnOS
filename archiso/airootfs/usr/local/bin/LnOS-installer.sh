@@ -67,7 +67,7 @@ gum_complete()
 # make it a bit simpler and just force nmtui on them
 echo "Please connect to the internet"
 
-gum_echo "connect to the internet? (installer wont work without it)"
+gum_echo "Connect to the internet? (Installer won't work without it)"
 gum confirm || exit
 
 nmtui
@@ -91,13 +91,13 @@ setup_desktop_and_packages()
     # Desktop Environment Installation
     while true; do
 		DE_CHOICE=$(gum choose --header "Choose your Desktop Environment (DE):" \
-            "Gnome(good for beginners, similar to mac)" \
-            "KDE(good for beginners, similar to windows)" \
+            "Gnome(Good for beginners, similar to Mac)" \
+            "KDE(Good for beginners, similar to Windows)" \
             "Hyprland(Tiling WM, basic dotfiles but requires more DIY)" \
-            "DWM(similar to Hyprland)" \
-            "TTY (no install required)")
+            "DWM(Similar to Hyprland)" \
+            "TTY (No install required)")
             
-		if [[ "$DE_CHOICE" == "TTY (no install required)" ]]; then
+		if [[ "$DE_CHOICE" == "TTY (No install required)" ]]; then
 			echo "TTY is preinstalled !"
             break
         fi
@@ -107,12 +107,12 @@ setup_desktop_and_packages()
     done
 
     case "$DE_CHOICE" in
-        "Gnome(good for beginners, similar to mac)")
+        "Gnome(Good for beginners, similar to Mac)")
             gum_echo "Installing Gnome..."
             pacman -S --noconfirm xorg xorg-server gnome gdm
             systemctl enable gdm.service
             ;;
-				"KDE(good for beginners, similar to windows)")
+				"KDE(Good for beginners, similar to Windows)")
             gum_echo "Installing KDE..."
             pacman -S --noconfirm xorg xorg-server plasma kde-applications sddm
             systemctl enable sddm.service
@@ -122,7 +122,7 @@ setup_desktop_and_packages()
             pacman -S --noconfirm wayland hyprland noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra kitty networkmanager
 
             # call and run JaKooLit's arch hyprland install
-            gum_echo "Downloading JaKooLit's hyprland, please run the script after installation!"
+            gum_echo "Downloading JaKooLit's Hyprland, please run the script after installation!"
             sleep 2
             wget https://raw.githubusercontent.com/JaKooLit/Arch-Hyprland/main/auto-install.sh
         
@@ -166,8 +166,8 @@ setup_desktop_and_packages()
             gum style \
                 --foreground 255 --border-foreground 130 --border double \
                 --width 100 --margin "1 2" --padding "2 4" \
-                'AUR (arch user repository) is less secure because its not maintained by arch.' \
-                'LnOS Maintainers picked these packages cause their released were signed with PGP keys' \
+                'AUR (Arch User Repository) is less secure because its not maintained by Arch.' \
+                'LnOS Maintainers picked these packages because their releases were signed with PGP keys' \
             gum confirm "Will you proceed to download AUR packages ? (i.e. brave, webcord)" || return
             
             # clone paru and build
@@ -203,7 +203,7 @@ setup_desktop_and_packages()
                 gum spin --spinner dot --title "Installing pacman packages..." -- pacman -S --noconfirm "$PACMAN_PACKAGES"
             fi
 
-            gum_echo "AUR (arch user repository) is less secure because it's not maintained by arch. LnOS Maintainers picked these packages cause their released were signed with PGP keys"
+            gum_echo "AUR (Arch User Repository) is less secure because it's not maintained by Arch. LnOS Maintainers picked these packages because their releases were signed with PGP keys"
             gum confirm "Will you proceed to download AUR packages ? (i.e. brave, webcord)" || return
             
             # clone paru and build
@@ -299,7 +299,7 @@ configure_system()
     # setup the desktop environment
     setup_desktop_and_packages "$username"
 
-	gum_echo "LnOS Basic DE / Package install completed!"
+	gum_echo "LnOS Basic DE/Package install completed!"
 
     exit 0
 }
@@ -443,10 +443,10 @@ install_x86_64()
 	setup_drive
 
     # Install base system (zen kernel may be cool, but after some research about hardening, the linux hardened kernel makes 10x more sense for students and will be the default)
-    gum_echo "Installing base system, will take some time (grab a coffee)"
+    gum_echo "Installing base system, will take some time (Grab a coffee)"
     pacstrap /mnt base linux-hardened linux-firmware btrfs-progs base-devel git wget networkmanager btrfs-progs openssh git dhcpcd networkmanager vi vim iw wget curl xdg-user-dirs
 
-    gum_echo "base system install done!"
+    gum_echo "Base system install done!"
 
 	# Copy LnOS repository files to target system (in order for the spin to happen you have to startup a new bash instance)
 	gum spin --spinner dot --title "copying LnOS files" -- bash -c "$(declare -f copy_lnos_files); copy_lnos_files"
@@ -471,8 +471,10 @@ install_x86_64()
 
     # Unmount and reboot
     umount -R /mnt
-    gum_complete "Installation complete. Rebooting in 10 seconds..."
-		sleep 10
+    for i in {10..1}; do
+        gum style --foreground 212 "Installation complete. Rebooting in $i seconds..."
+        sleep 1
+    done
     reboot
 }
 

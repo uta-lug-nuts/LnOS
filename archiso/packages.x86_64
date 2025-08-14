@@ -10,6 +10,7 @@ dosfstools
 e2fsprogs
 ntfs-3g
 xfsprogs
+pv
 
 # Hardware and virtualization support
 virtualbox-guest-utils-nox
@@ -36,6 +37,7 @@ curl
 arch-install-scripts
 parted
 gdisk
+reflector
 
 # Essential utilities
 sudo
@@ -61,3 +63,6 @@ ppp
 
 # Your installer requirements
 gum
+
+# LnOS Front End
+terminus-font
