@@ -21,6 +21,7 @@ build.log
 archiso.log
 
 # Temporary files
+*.bak
 *.tmp
 *.temp
 .tmp/
