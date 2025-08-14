@@ -10,6 +10,7 @@ dosfstools
 e2fsprogs
 ntfs-3g
 xfsprogs
+pv
 
 # Hardware and virtualization support
 virtualbox-guest-utils-nox
